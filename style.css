@@ -1,0 +1,26 @@
+:root{--bg:#F3F4F6;--card:#fff;--ink:#14181F;--mute:#5F6672;--blue:#0B5C8C;--green:#117A3E;--red:#B3261E;--line:#E2E4E8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;background:var(--blue);color:#fff}
+h1{margin:0;font-size:20px}header p{margin:0;font-size:13px;opacity:.9}
+button{font:inherit;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer}
+button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+header button.primary{background:#fff;color:var(--blue)}
+main{padding:16px;display:grid;gap:12px;max-width:640px;margin:0 auto}
+.card{background:var(--card);border-radius:14px;padding:14px;border:1px solid var(--line)}
+.card.hold{opacity:.65}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:start}
+.name{font-weight:650;font-size:18px}.sub{color:var(--mute);font-size:14px}
+.badge{font-size:12px;padding:2px 8px;border-radius:99px;background:#FFF1D6;color:#7A4B00;white-space:nowrap}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.actions a{display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:10px;text-decoration:none;font-weight:600;color:#fff}
+.map{background:var(--blue)}.wa{background:var(--green)}
+.actions a.off{background:#C9CCD2;pointer-events:none}
+.more{display:flex;gap:8px;margin-top:8px}.more button{flex:1;font-size:14px}
+.more .del{color:var(--red)}
+.empty{text-align:center;color:var(--mute);padding:40px 0}
+dialog{width:min(92vw,420px);border:0;border-radius:16px;padding:20px}
+dialog::backdrop{background:#0006}
+label{display:block;font-size:14px;color:var(--mute);margin-bottom:12px}
+input{display:block;width:100%;min-height:44px;margin-top:4px;padding:0 12px;border:1px solid var(--line);border-radius:10px;font:inherit;color:var(--ink)}
+.row{display:flex;gap:8px;justify-content:flex-end}h2{margin:0 0 12px}

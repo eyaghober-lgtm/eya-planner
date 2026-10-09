@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B5C8C">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg">
+<link rel="apple-touch-icon" href="icons/icon.svg">
+<title>Aya's Students</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div>
+    <h1>Aya's Students</h1>
+    <p id="count"></p>
+  </div>
+  <button id="addBtn" class="primary" type="button">+ Add</button>
+</header>
+<main id="list"></main>
+
+<dialog id="dlg">
+  <form method="dialog" id="form">
+    <h2 id="dlgTitle">New student</h2>
+    <label>Name<input name="name" required autocomplete="off"></label>
+    <label>WhatsApp number<input name="phone" type="tel" inputmode="tel" placeholder="05XXXXXXXX"></label>
+    <label>Location (Google Maps link or lat,lng)<input name="map" placeholder="https://maps.app.goo.gl/… or 24.77,46.63"></label>
+    <label>Area / note<input name="area" autocomplete="off"></label>
+    <label>Sessions per week<input name="per" type="number" min="1" max="7" value="3"></label>
+    <div class="row">
+      <button type="button" id="cancel">Cancel</button>
+      <button type="submit" class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
+<script src="app.js"></script>
+</body>
+</html>
