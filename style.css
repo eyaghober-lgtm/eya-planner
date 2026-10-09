@@ -1,4 +1,4 @@
-:root{--bg:#F3F4F6;--card:#fff;--ink:#14181F;--mute:#5F6672;--blue:#0B5C8C;--green:#117A3E;--red:#B3261E;--line:#E2E4E8}
+:root{--bg:#F5F2FB;--card:#fff;--ink:#14181F;--mute:#5F6672;--blue:#6D3FC4;--green:#117A3E;--red:#B3261E;--line:#E4DDF3}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;padding-bottom:env(safe-area-inset-bottom)}
 header{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:calc(12px + env(safe-area-inset-top)) 16px 12px;background:var(--blue);color:#fff}
@@ -40,5 +40,30 @@ nav{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:6px 8px;bac
 .dayhead{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.stat{background:#fff;border-radius:10px;padding:8px;text-align:center;border:1px solid var(--line)}.stat b{display:block}.stat span{font-size:11px;color:var(--mute)}
 .warn{background:#FFF1D6;border-radius:12px;padding:10px;color:#7A4B00}.warn p{margin:4px 0}
-.wide{width:100%}h2{margin:8px 0}pre{white-space:pre-wrap;font:14px/1.5 inherit;background:#F3F4F6;border-radius:8px;padding:10px;margin:8px 0}
+.wide{width:100%}h2{margin:8px 0}pre{white-space:pre-wrap;font:14px/1.5 inherit;background:#F5F2FB;border-radius:8px;padding:10px;margin:8px 0}
 .empty,.sub{color:var(--mute)}.sub{font-size:14px;margin:4px 0}.empty{text-align:center;padding:30px 0}
+
+/* purple polish + small animations */
+header{background:linear-gradient(135deg,#6D3FC4,#8B5CF6);box-shadow:0 2px 10px #6d3fc455}
+nav{background:#6D3FC4}
+.card,.stop{box-shadow:0 1px 3px #6d3fc41a}
+button,.actions a{transition:transform .15s ease,background-color .2s ease,box-shadow .2s ease}
+button:active,.actions a:active{transform:scale(.95)}
+.chip.on{background:#6D3FC4;border-color:#6D3FC4;color:#fff}
+.chip.refuse.on{background:#FBE9E9;color:#9B1C1C;border-color:#E8B4B4}
+.chip.must.on{background:#9B1C5A;border-color:#9B1C5A;color:#fff}
+.chip.warnchip.on{background:#B4500A;border-color:#B4500A;color:#fff}
+.primary{background:#6D3FC4;border-color:#6D3FC4;color:#fff}
+.map{background:#6D3FC4}
+.tab{transition:background-color .25s ease,color .25s ease}
+.tab.on{color:#6D3FC4}
+header button.primary{color:#6D3FC4}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{transform:scale(.9)}60%{transform:scale(1.06)}100%{transform:scale(1)}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 0 #8b5cf655}50%{box-shadow:0 0 0 6px #8b5cf600}}
+#view>*{animation:rise .35s ease both}
+#view>*:nth-child(2){animation-delay:.04s}#view>*:nth-child(3){animation-delay:.08s}#view>*:nth-child(4){animation-delay:.12s}#view>*:nth-child(n+5){animation-delay:.16s}
+.chip.on,.donebtn.on{animation:pop .25s ease}
+.stop.done{animation:pop .3s ease}
+.primary.wide{animation:glow 2.8s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
