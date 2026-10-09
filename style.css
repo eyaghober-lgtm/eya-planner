@@ -102,3 +102,5 @@ nav{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:5;display:grid;grid-
 .latelink{border-radius:10px;min-height:44px;padding:0 14px;font-size:14px;font-weight:700;border:1px solid #B4500A}
 .latelink.off{background:#C9CCD2;border-color:#C9CCD2;pointer-events:none}
 .stop .time{margin-top:2px}
+.hero .actions a.heroact{background:#fff;color:#5B2FB0;font-size:15px}
+.hero .actions a.heroact.off{background:#ffffff40;color:#fff}
