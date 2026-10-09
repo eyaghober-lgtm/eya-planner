@@ -21,7 +21,7 @@ var SEED = [
   { id: 'lulwa', name: 'Lulwa', per: 3, dur: 1, cluster: 'north', area: 'Al Qirawan', lat: 24.862, lng: 46.612, km: null, map: 'https://maps.app.goo.gl/msV96mfUppFcS7PXA' }
 ];
 var KEY = 'aya-planner-v2';
-var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20 };
+var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, myName: 'Aya', total: {}, cancelled: {}, skip: {}, cancels: {} };
 var S = load();
 var UI = { tab: 'today', viewDay: null, copied: '', editing: undefined };
 
@@ -114,23 +114,25 @@ function affinity(a, b) {
   var m = { 'far-west': 1, 'north-west': 1, 'east-far': -5, 'east-west': -3, 'east-north': -1, 'far-north': -1 };
   return m[[a, b].sort().join('-')] || 0;
 }
+function needOf(s) { return Math.max(0, s.per - (S.skip[s.id] || 0)); }
 function allowedDays(s) {
   var r = S.refused[s.id] || [];
-  return (s.fixed || WORK).filter(function (d) { return r.indexOf(d) < 0; });
+  return (s.fixed || WORK).filter(function (d) { return r.indexOf(d) < 0 && !S.cancelled[d + '|' + s.id]; });
 }
 function buildPlan() {
   var plan = {}, missing = [];
   WEEK.forEach(function (d) { plan[d] = []; });
   Object.keys(S.extra).forEach(function (id) {
     if (!BY[id] || BY[id].hold) return;
-    S.extra[id].forEach(function (d) { if (plan[d] && plan[d].indexOf(id) < 0) plan[d].push(id); });
+    S.extra[id].forEach(function (d) { if (plan[d] && plan[d].indexOf(id) < 0 && !S.cancelled[d + '|' + id]) plan[d].push(id); });
   });
   STUDENTS.slice().sort(function (a, b) {
     return ((a.fixed ? 0 : 1) - (b.fixed ? 0 : 1)) || (allowedDays(a).length - allowedDays(b).length) || (b.per - a.per);
   }).forEach(function (s) {
     var allowed = allowedDays(s);
     var placed = WEEK.filter(function (d) { return plan[d].indexOf(s.id) >= 0; }).length;
-    for (var k = placed; k < s.per; k++) {
+    var need = needOf(s);
+    for (var k = placed; k < need; k++) {
       var best = null, bs = -1e9;
       allowed.forEach(function (d) {
         if (plan[d].indexOf(s.id) >= 0) return;
@@ -143,7 +145,7 @@ function buildPlan() {
       });
       if (best) { plan[best].push(s.id); placed++; }
     }
-    if (placed < s.per) missing.push(s.name + ': ' + (s.per - placed) + ' session(s) left out — too many refused days or those afternoons are full. Try freeing a day.');
+    if (placed < need) missing.push(s.name + ': ' + (need - placed) + ' session(s) left out — too many refused days or those afternoons are full. Try freeing a day.');
   });
   WORK.forEach(function (d) {
     if (plan[d].length && !route(plan[d], S.dur, d).ok) missing.push(FULL[d] + ' runs late — check the times or move someone.');
@@ -168,8 +170,9 @@ function btn(text, cls, fn, on) {
   b.onclick = fn;
   return b;
 }
-function a(text, cls, href) {
+function a(text, cls, href, onclick) {
   var e = h('a', cls + (href ? '' : ' off'), text);
+  if (onclick) e.onclick = onclick;
   if (href) { e.href = href; e.target = '_blank'; e.rel = 'noopener'; }
   return e;
 }
@@ -192,7 +195,7 @@ function nextHero(r, vd) {
   box.appendChild(h('div', 'herolbl', 'Next lesson'));
   box.appendChild(h('div', 'herorow', [avatar(s), h('div', '', [h('div', 'herotitle', s.name), h('div', 'herosub', fmt(nxt.start) + ' – ' + fmt(nxt.end) + (inMin > 0 ? ' · in ' + (inMin >= 60 ? Math.floor(inMin / 60) + ' h ' + (inMin % 60) + ' min' : inMin + ' min') : ' · now'))])]));
   box.appendChild(h('div', 'herosub', 'Leave school by ' + fmt(nxt.start - nxt.drive) + ' · ' + (nxt.drive - BUFFER) + ' min drive + parking'));
-  box.appendChild(h('div', 'actions', [a('Map', 'heroact', mapLink(s.map)), a('On my way', 'heroact', waLink(phoneOf(s), 'السلام عليكم حبيبتي، أنا في الطريق وبوصل الساعة ' + fmtAr(nxt.start) + ' تقريباً إن شاء الله'))]));
+  box.appendChild(h('div', 'actions', [a('Map', 'heroact', mapLink(s.map)), a('On my way', 'heroact', waLink(phoneOf(s), 'السلام عليكم حبيبتي، أنا في الطريق وبوصل الساعة ' + fmtAr(nxt.start) + ' تقريباً إن شاء الله'), function () { startTrack(s); })]));
   return box;
 }
 function stopCard(x, day, big) {
@@ -212,10 +215,13 @@ function stopCard(x, day, big) {
   }
   var act = h('div', 'actions', [
     a('Map', 'map', mapLink(s.map)),
-    a('On my way', 'wa', waLink(phoneOf(s), 'السلام عليكم حبيبتي، أنا في الطريق وبوصل الساعة ' + fmtAr(x.start) + ' تقريباً إن شاء الله')),
-    a('I’ve arrived', 'wa', waLink(phoneOf(s), 'السلام عليكم حبيبتي، وصلت وأنا عند الباب')),
+    a('On my way', 'wa', waLink(phoneOf(s), 'السلام عليكم حبيبتي، أنا في الطريق وبوصل الساعة ' + fmtAr(x.start) + ' تقريباً إن شاء الله'), function () { startTrack(s); }),
+    a('I’ve arrived', 'wa', waLink(phoneOf(s), 'السلام عليكم حبيبتي، وصلت وأنا عند الباب'), function () { stopTrack(); }),
     btn(done ? 'Done ✓' : 'Mark done', 'donebtn', function () {
-      chg(function () { if (S.marks[key]) delete S.marks[key]; else S.marks[key] = true; });
+      chg(function () {
+        if (S.marks[key]) { delete S.marks[key]; S.total[x.id] = Math.max(0, (S.total[x.id] || 0) - 1); }
+        else { S.marks[key] = true; S.total[x.id] = (S.total[x.id] || 0) + 1; stopTrack(); }
+      });
     }, done)
   ]);
   card.appendChild(act);
@@ -224,6 +230,31 @@ function stopCard(x, day, big) {
     late.appendChild(a(n + ' min', 'chip latelink', waLink(phoneOf(s), lateMsg(s, x.start + n))));
   });
   card.appendChild(late);
+  if (!done) {
+    if (UI.cancelOpen === key) {
+      var mv = h('div', 'chips', [h('span', 'lbl', 'Moved to:')]);
+      WORK.filter(function (d) { return d !== day; }).forEach(function (d) {
+        mv.appendChild(btn(d, 'chip', function () {
+          chg(function () {
+            S.cancelled[key] = { to: d };
+            var l = (S.extra[x.id] || []).filter(function (z) { return z !== day; });
+            if (l.indexOf(d) < 0) l.push(d);
+            S.extra[x.id] = l;
+            S.cancels[x.id] = (S.cancels[x.id] || 0) + 1;
+            UI.cancelOpen = null;
+          });
+        }));
+      });
+      mv.appendChild(btn('Cancel, no makeup', 'chip warnchip', function () {
+        chg(function () { S.cancelled[key] = { to: null }; S.skip[x.id] = (S.skip[x.id] || 0) + 1; S.cancels[x.id] = (S.cancels[x.id] || 0) + 1; UI.cancelOpen = null; });
+      }));
+      mv.appendChild(btn('Close', 'chip', function () { UI.cancelOpen = null; render(); }));
+      card.appendChild(mv);
+      card.appendChild(h('p', 'sub', 'Cancelled lessons are not counted.'));
+    } else {
+      card.appendChild(btn('Cancelled / moved to another day', 'cancelbtn', function () { UI.cancelOpen = key; render(); }));
+    }
+  }
   return card;
 }
 function lateMsg(s, newStart) {
@@ -258,7 +289,7 @@ function viewToday(root, plan) {
 
 function viewWeek(root, built) {
   var plan = built.plan, planned = 0, req = 0, latest = null, done = Object.keys(S.marks).length;
-  STUDENTS.forEach(function (s) { req += Math.max(s.per, (S.extra[s.id] || []).length); });
+  STUDENTS.forEach(function (s) { req += Math.max(needOf(s), (S.extra[s.id] || []).length); });
   WEEK.forEach(function (d) { var r = dayRoute(plan, d); planned += r.stops.length; if (r.stops.length && (latest === null || r.end > latest)) latest = r.end; });
   root.appendChild(h('div', 'stats', [
     [planned + ' / ' + req, 'Planned'], [done, 'Done'], [Math.max(0, planned - done), 'Left'], [latest === null ? '—' : fmt(latest), 'Latest finish']
@@ -285,8 +316,28 @@ function viewWeek(root, built) {
     if (r.stops.length) sec.appendChild(h('p', 'sub', 'Last lesson ends ' + fmt(r.end)));
     root.appendChild(sec);
   });
+  var cks = Object.keys(S.cancelled);
+  if (cks.length) {
+    var cc = h('section', 'card', [h('b', '', 'Cancelled / moved this week')]);
+    cks.forEach(function (k) {
+      var parts = k.split('|'), id = parts[1], day = parts[0], info = S.cancelled[k], st = BY[id];
+      if (!st) return;
+      cc.appendChild(h('div', 'dayhead', [
+        h('span', '', st.name + ' · ' + FULL[day] + (info.to ? ' → ' + FULL[info.to] : ' (no makeup)')),
+        btn('Undo', 'chip', function () {
+          chg(function () {
+            delete S.cancelled[k];
+            if (info.to) S.extra[id] = (S.extra[id] || []).filter(function (z) { return z !== info.to; });
+            else S.skip[id] = Math.max(0, (S.skip[id] || 0) - 1);
+            S.cancels[id] = Math.max(0, (S.cancels[id] || 0) - 1);
+          });
+        })
+      ]));
+    });
+    root.appendChild(cc);
+  }
   root.appendChild(btn('Start a new week', 'wide', function () {
-    if (confirm('Clear this week’s ticks, must-come days, start times and traffic?')) chg(function () { S.marks = {}; S.extra = {}; S.approvedSig = ''; S.dayStart = {}; S.durDay = {}; S.traffic = {}; });
+    if (confirm('Clear this week’s ticks, cancellations, must-come days, start times and traffic? Total sessions are kept.')) chg(function () { S.marks = {}; S.extra = {}; S.cancelled = {}; S.skip = {}; S.approvedSig = ''; S.dayStart = {}; S.durDay = {}; S.traffic = {}; });
   }));
 }
 
@@ -302,7 +353,7 @@ function viewStudents(root, plan) {
     if (!s.hold) {
       var days = WEEK.filter(function (d) { return plan[d].indexOf(s.id) >= 0; });
       card.appendChild(h('p', 'sub', days.length ? 'Planned: ' + days.map(function (d) { return FULL[d]; }).join(', ') : 'Not planned yet this week'));
-      var tot = h('div', 'chips', [h('span', 'lbl', 'Total sessions: ' + Object.keys(S.marks).filter(function (k) { return k.split('|')[1] === s.id; }).length + ' this week')]);
+      var tot = h('div', 'chips', [h('span', 'lbl', 'Total sessions: ' + (S.total[s.id] || 0) + ' · done this week: ' + Object.keys(S.marks).filter(function (k) { return k.split('|')[1] === s.id; }).length + ' (edit in Profile)')]);
       card.appendChild(tot);
       card.appendChild(h('div', 'lbl', 'Tap the days they refuse'));
       var ch = h('div', 'chips');
@@ -401,6 +452,86 @@ function viewSend(root, plan) {
   });
 }
 
+/* ---------- profile ---------- */
+function viewProfile(root) {
+  var grand = 0, weekDone = Object.keys(S.marks).length, canc = 0;
+  S.students.forEach(function (s) { grand += S.total[s.id] || 0; canc += S.cancels[s.id] || 0; });
+  var nm = h('input', 'phonein', null, { type: 'text', value: S.myName, placeholder: 'Your name' });
+  nm.setAttribute('aria-label', 'Your name');
+  nm.onchange = function () { S.myName = nm.value.trim() || 'Aya'; save(); render(); };
+  root.appendChild(h('section', 'hero', [
+    h('div', 'herorow', [h('span', 'avatar', (S.myName || 'A').charAt(0).toUpperCase()), h('div', '', [h('div', 'herotitle', S.myName || 'Aya'), h('div', 'herosub', 'Teacher profile')])]),
+    h('div', 'stats prof', [
+      [grand, 'Total sessions'], [weekDone, 'Done this week'], [canc, 'Cancelled']
+    ].map(function (p) { return h('div', 'stat', [h('b', '', String(p[0])), h('span', '', p[1])]); }))
+  ]));
+  root.appendChild(h('section', 'card', [h('b', '', 'Your name'), nm]));
+  root.appendChild(h('p', 'sub', 'Type each student’s total including lessons you taught before using this app. From now on the counter goes up by itself each time you tap “Mark done”. Cancelled lessons never count.'));
+  S.students.forEach(function (s) {
+    var wd = Object.keys(S.marks).filter(function (k) { return k.split('|')[1] === s.id; }).length;
+    var inp = h('input', 'numin', null, { type: 'number', min: '0', value: String(S.total[s.id] || 0) });
+    inp.setAttribute('inputmode', 'numeric');
+    inp.setAttribute('aria-label', 'Total sessions for ' + s.name);
+    inp.onchange = function () { S.total[s.id] = Math.max(0, parseInt(inp.value, 10) || 0); save(); render(); };
+    root.appendChild(h('section', 'card' + (s.hold ? ' hold' : ''), [
+      h('div', 'dayhead', [h('div', 'who', [avatar(s), h('div', '', [h('b', 'name', s.name), h('div', 'sub', 'This week: ' + wd + ' done · cancelled: ' + (S.cancels[s.id] || 0))])]),
+        h('div', 'counter', [
+          btn('−', 'cbtn', function () { chg(function () { S.total[s.id] = Math.max(0, (S.total[s.id] || 0) - 1); }); }),
+          inp,
+          btn('+', 'cbtn', function () { chg(function () { S.total[s.id] = (S.total[s.id] || 0) + 1; }); })
+        ])
+      ])
+    ]));
+  });
+}
+
+/* ---------- arrival tracking ---------- */
+var TRACK = null;
+function arrivalMsg() { return 'السلام عليكم حبيبتي، باقي لي حوالي خمس دقايق وأوصل إن شاء الله، الله يعطيكم العافية 🌹'; }
+function bar() { return document.getElementById('arrbar'); }
+function stopTrack() {
+  if (TRACK && TRACK.watch != null) navigator.geolocation.clearWatch(TRACK.watch);
+  TRACK = null;
+  bar().hidden = true;
+}
+function startTrack(s) {
+  if (!navigator.geolocation) { alert('This phone/browser has no location.'); return; }
+  if (s.lat == null || s.lng == null) { alert('Add ' + s.name + '’s location first (Students → Edit) so I can tell when you are close.'); return; }
+  stopTrack();
+  TRACK = { id: s.id, fired: false, min: null };
+  TRACK.watch = navigator.geolocation.watchPosition(onPos, function () {
+    if (TRACK) { TRACK.err = true; drawBar(); }
+  }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+  drawBar();
+}
+function onPos(p) {
+  if (!TRACK) return;
+  var s = BY[TRACK.id];
+  var km = hav({ lat: p.coords.latitude, lng: p.coords.longitude }, s) * 1.35;
+  TRACK.err = false;
+  TRACK.min = Math.round(km / 35 * 60);
+  if (!TRACK.fired && TRACK.min <= 5) {
+    TRACK.fired = true;
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    notify('5 minutes from ' + s.name, 'Tap to send “I’m almost there” on WhatsApp', waLink(phoneOf(s), arrivalMsg()));
+  }
+  drawBar();
+}
+function drawBar() {
+  var b = bar();
+  if (!TRACK) { b.hidden = true; return; }
+  var s = BY[TRACK.id];
+  b.hidden = false;
+  b.textContent = '';
+  var near = TRACK.fired;
+  b.className = near ? 'near' : '';
+  b.appendChild(h('div', 'arrtxt', TRACK.err ? 'Waiting for location… (allow location for this app)' : TRACK.min == null ? 'Finding you…' : near ? s.name + ': about 5 minutes away!' : s.name + ': about ' + TRACK.min + ' min away'));
+  var row = h('div', 'arrrow');
+  if (near) row.appendChild(a(phoneOf(s) ? 'Send “almost there”' : 'Add number first', 'arrsend', waLink(phoneOf(s), arrivalMsg())));
+  row.appendChild(btn('Stop', 'arrstop', function () { stopTrack(); }));
+  b.appendChild(row);
+}
+
 /* ---------- settings & reminders ---------- */
 function settingsCard() {
   var my = h('input', 'phonein', null, { type: 'tel', placeholder: 'My WhatsApp number (05XXXXXXXX)', value: S.myPhone });
@@ -450,10 +581,10 @@ function settingsCard() {
   card.appendChild(h('p', 'sub', 'Reminders ring while the app is open or running in the background on your phone. If the phone closes the app completely, open it once and today’s reminders are set again.'));
   return card;
 }
-function notify(title, body) {
+function notify(title, body, url) {
   try {
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    if (navigator.serviceWorker && navigator.serviceWorker.ready) navigator.serviceWorker.ready.then(function (r) { r.showNotification(title, { body: body, icon: 'icons/icon.svg', vibrate: [150, 80, 150] }); });
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) navigator.serviceWorker.ready.then(function (r) { r.showNotification(title, { body: body, icon: 'icons/icon.svg', vibrate: [150, 80, 150], data: { url: url || '' } }); });
     else new Notification(title, { body: body });
   } catch (e) {}
 }
@@ -519,9 +650,10 @@ function render() {
     today: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     week: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
     students: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 5a3.5 3.5 0 0 1 0 7M18 14c2.2.6 3.5 2.4 3.5 6"/>',
+    profile: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>',
     send: '<path d="M21 3 10 14M21 3l-7 18-4-7-7-4z"/>'
   };
-  [['today', 'Today'], ['week', 'Week'], ['students', 'Students'], ['send', 'Send']].forEach(function (t) {
+  [['today', 'Today'], ['week', 'Week'], ['students', 'Students'], ['profile', 'Profile'], ['send', 'Send']].forEach(function (t) {
     var b = btn('', 'tab', function () { UI.tab = t[0]; render(); window.scrollTo(0, 0); }, UI.tab === t[0]);
     b.textContent = '';
     var ic = h('span', 'ico');
@@ -532,10 +664,11 @@ function render() {
   var held = S.students.length - STUDENTS.length;
   var hr = new Date().getHours();
   var greet = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
-  document.getElementById('count').textContent = greet + ', Aya · ' + STUDENTS.length + ' active' + (held ? ' · ' + held + ' on hold' : '');
+  document.getElementById('count').textContent = greet + ', ' + (S.myName || 'Aya') + ' · ' + STUDENTS.length + ' active' + (held ? ' · ' + held + ' on hold' : '');
   if (UI.tab === 'today') viewToday(root, built.plan);
   else if (UI.tab === 'week') viewWeek(root, built);
   else if (UI.tab === 'students') viewStudents(root, built.plan);
+  else if (UI.tab === 'profile') viewProfile(root);
   else viewSend(root, built.plan);
   scheduleReminders(built.plan);
   if (UI.editing !== undefined && !document.getElementById('dlg').open) openForm();
