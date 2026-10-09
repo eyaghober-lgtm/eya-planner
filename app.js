@@ -432,6 +432,7 @@ function viewStudents(root, plan) {
       }
     }
     if (s.note) body.appendChild(h('p', 'sub', s.note));
+    body.appendChild(phoneBtn(s));
     body.appendChild(h('div', 'actions', [a('Map', 'map', mapLink(s.map)), a('WhatsApp', 'wa', waLink(phoneOf(s)))]));
     body.appendChild(h('div', 'actions', [
       btn(s.hold ? 'Resume' : 'Hold', '', function () { chg(function () { s.hold = !s.hold; }); }),
@@ -484,6 +485,28 @@ function viewSend(root, plan) {
     ]));
   });
 }
+
+/* ---------- WhatsApp number as a small button ---------- */
+var PH = null;
+function phoneBtn(s) {
+  var n = phoneOf(s);
+  var b = btn(n ? 'WhatsApp: ' + n + '  ✎' : '+ Add WhatsApp number', 'minibtn' + (n ? '' : ' empty'), function () { editPhone(s); });
+  b.setAttribute('aria-label', n ? 'Change WhatsApp number for ' + s.name : 'Add WhatsApp number for ' + s.name);
+  return b;
+}
+function editPhone(s) {
+  PH = s;
+  document.getElementById('phoneTitle').textContent = 'WhatsApp · ' + s.name;
+  document.getElementById('phoneForm').phone.value = phoneOf(s);
+  document.getElementById('phoneDlg').showModal();
+}
+document.getElementById('phoneCancel').onclick = function () { document.getElementById('phoneDlg').close(); PH = null; };
+document.getElementById('phoneForm').onsubmit = function () {
+  if (PH) { S.phones[PH.id] = this.phone.value.trim(); save(); }
+  PH = null;
+  setTimeout(render, 0);
+  return true;
+};
 
 /* ---------- search / filter / sort ---------- */
 function visibleStudents() {
@@ -604,6 +627,7 @@ function viewProfile(root) {
     head.onclick = function () { UI.profOpen = open ? null : s.id; render(); };
     root.appendChild(h('section', 'card pcard' + (open ? ' isopen' : '') + (s.hold ? ' hold' : ''), [head, !open ? null : h('div', 'cardbody', [
       h('div', 'sub', 'This week: ' + wd + ' / ' + needOf(s) + ' done · cancelled: ' + (S.cancels[s.id] || 0)),
+      phoneBtn(s),
       row('Total sessions taught', h('div', 'counter', [
         btn('−', 'cbtn', function () { chg(function () { S.total[s.id] = Math.max(0, (S.total[s.id] || 0) - 1); }); }),
         inp,

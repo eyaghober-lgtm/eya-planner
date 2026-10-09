@@ -184,3 +184,6 @@ main{grid-template-columns:minmax(0,1fr)}
 .filterbar,.chips.scroll{min-width:0;max-width:100%}
 body{overflow-x:hidden}
 .numlist{margin:6px 0;background:transparent;padding:0;font-size:15px;word-break:normal}
+.minibtn{display:inline-flex;align-items:center;min-height:36px;padding:0 14px;margin:6px 0;border-radius:999px;font-size:13px;font-weight:700;color:#1F7A47;background:#E8F6EE;border:1px solid #BFE6D0}
+.minibtn.empty{color:#A23FB0;background:#FBEAF4;border-color:#F0C9E0}
+@media (prefers-color-scheme:dark){.minibtn{color:#8FE0B5;background:#1D3A2B;border-color:#2C5A42}.minibtn.empty{color:#F2A6D0;background:#3A2340;border-color:#5A3560}}
