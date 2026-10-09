@@ -21,7 +21,7 @@ var SEED = [
   { id: 'lulwa', name: 'Lulwa', per: 3, dur: 1, cluster: 'north', area: 'Al Qirawan', lat: 24.862, lng: 46.612, km: null, map: 'https://maps.app.goo.gl/msV96mfUppFcS7PXA' }
 ];
 var KEY = 'aya-planner-v2';
-var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, savedAt: 0, notes: {}, myName: 'Aya', rate: {}, unpaid: {}, pay: {}, order: {}, total: {}, cancelled: {}, skip: {}, cancels: {} };
+var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, savedAt: 0, myName: 'Aya', rate: {}, unpaid: {}, pay: {}, order: {}, total: {}, cancelled: {}, skip: {}, cancels: {} };
 var S = load();
 var UI = { q: '', flt: 'all', sort: 'added', tab: 'today', viewDay: null, copied: '', editing: undefined };
 
@@ -371,7 +371,7 @@ function viewWeek(root, built) {
     root.appendChild(cc);
   }
   root.appendChild(btn('Start a new week', 'wide', function () {
-    if (confirm('Clear this week’s ticks, cancellations, must-come days, start times and traffic? Total sessions are kept.')) chg(function () { S.marks = {}; S.extra = {}; S.cancelled = {}; S.skip = {}; S.order = {}; S.notes = {}; S.approvedSig = ''; S.dayStart = {}; S.durDay = {}; S.traffic = {}; });
+    if (confirm('Clear this week’s ticks, cancellations, must-come days, start times and traffic? Total sessions are kept.')) chg(function () { S.marks = {}; S.extra = {}; S.cancelled = {}; S.skip = {}; S.order = {}; S.approvedSig = ''; S.dayStart = {}; S.durDay = {}; S.traffic = {}; });
   }));
 }
 
@@ -443,15 +443,6 @@ function viewStudents(root, plan) {
   });
 }
 
-function noteBox(s, refresh) {
-  var ni = h('input', 'phonein', null, { type: 'text', value: S.notes[s.id] || '', placeholder: 'Feedback / note for the parents (optional)' });
-  ni.setAttribute('aria-label', 'Note for ' + s.name + '’s parents');
-  ni.onchange = function () { S.notes[s.id] = ni.value.trim(); save(); render(); };
-  live(ni);
-  var quietCommit = ni.oninput;
-  ni.oninput = function () { quietCommit(); refresh(); };
-  return ni;
-}
 function viewSend(root, plan) {
   var lessonsBy = {}, lines = [], sig = [];
   WEEK.forEach(function (d) {
@@ -482,20 +473,19 @@ function viewSend(root, plan) {
   STUDENTS.forEach(function (s) {
     var ls = lessonsBy[s.id] || [];
     var make = function () {
-    var note = (S.notes[s.id] || '').trim();
     var ar = ls.length
-      ? 'السلام عليكم ورحمة الله وبركاته 🌸\nمساء الخير، الله يسعدكم ويبارك لكم في أوقاتكم.\n\nيسعدني أشارككم مواعيد حصص ' + s.name + ' لهذا الأسبوع بإذن الله:\n' + ls.map(function (l) { return '• ' + AR_DAY[l.d] + ': ' + fmtAr(l.start) + ' – ' + fmtAr(l.end); }).join('\n') + '\n\n' + (note ? '✨ ملاحظة: ' + note + '\n\n' : '') + 'الله يعطيكم العافية على تعاونكم وثقتكم الغالية، وإن شاء الله يكون أسبوع حلو ومليان إنجاز لـ ' + s.name + ' 🌷\nوإذا في أي وقت ما يناسبكم، قولوا لي وأرتبه لكم بكل سرور 💛'
-      : 'السلام عليكم ورحمة الله وبركاته 🌸\nمساء الخير، الله يسعدكم. حبيت أبلغكم إنه ما في حصص لـ ' + s.name + ' هذا الأسبوع، وإن شاء الله نلتقي قريب.\n' + (note ? '\n✨ ملاحظة: ' + note + '\n' : '') + '\nوأي شي تحتاجونه أنا حاضرة 🌷';
+      ? 'السلام عليكم ورحمة الله وبركاته 🌸\nمساء الخير، الله يسعدكم ويبارك لكم في أوقاتكم.\n\nيسعدني أشارككم مواعيد حصص ' + s.name + ' لهذا الأسبوع بإذن الله:\n' + ls.map(function (l) { return '• ' + AR_DAY[l.d] + ': ' + fmtAr(l.start) + ' – ' + fmtAr(l.end); }).join('\n') + '\n\n' + 'الله يعطيكم العافية على تعاونكم وثقتكم الغالية، وإن شاء الله يكون أسبوع حلو ومليان إنجاز لـ ' + s.name + ' 🌷\nوإذا في أي وقت ما يناسبكم، قولوا لي وأرتبه لكم بكل سرور 💛'
+      : 'السلام عليكم ورحمة الله وبركاته 🌸\nمساء الخير، الله يسعدكم. حبيت أبلغكم إنه ما في حصص لـ ' + s.name + ' هذا الأسبوع، وإن شاء الله نلتقي قريب.\n' + '\nوأي شي تحتاجونه أنا حاضرة 🌷';
     var en = ls.length
-      ? 'Assalamu alaikum, good evening! 🌸 I hope you are all doing wonderfully.\n\nI’m happy to share ' + s.name + '’s lessons for this week, in sha Allah:\n' + ls.map(function (l) { return '• ' + FULL[l.d] + ': ' + fmt(l.start) + ' – ' + fmt(l.end); }).join('\n') + '\n\n' + (note ? '✨ Note: ' + note + '\n\n' : '') + 'Thank you so much for your trust and support. Wishing ' + s.name + ' a lovely, productive week! 🌷 If any time doesn’t suit you, just tell me and I’ll happily rearrange it. 💛'
-      : 'Assalamu alaikum, good evening! 🌸 There are no lessons planned for ' + s.name + ' this week, and I look forward to seeing you soon. ' + (note ? '\n\n✨ Note: ' + note + '\n\n' : '') + 'I’m here if you need anything. 🌷';
+      ? 'Assalamu alaikum, good evening! 🌸 I hope you are all doing wonderfully.\n\nI’m happy to share ' + s.name + '’s lessons for this week, in sha Allah:\n' + ls.map(function (l) { return '• ' + FULL[l.d] + ': ' + fmt(l.start) + ' – ' + fmt(l.end); }).join('\n') + '\n\n' + 'Thank you so much for your trust and support. Wishing ' + s.name + ' a lovely, productive week! 🌷 If any time doesn’t suit you, just tell me and I’ll happily rearrange it. 💛'
+      : 'Assalamu alaikum, good evening! 🌸 There are no lessons planned for ' + s.name + ' this week, and I look forward to seeing you soon. ' + 'I’m here if you need anything. 🌷';
     return S.lang === 'en' ? en : S.lang === 'both' ? ar + '\n\n— — —\n\n' + en : ar;
     };
     var text = make();
     var pre = h('pre', '', text);
     var waA = a('Send on WhatsApp', 'wa', waLink(phoneOf(s), text));
     root.appendChild(h('section', 'card', [
-      h('b', '', s.name), noteBox(s, function () { var tx = make(); pre.textContent = tx; if (phoneOf(s)) waA.href = waLink(phoneOf(s), tx); }), pre,
+      h('b', '', s.name), pre,
       h('div', 'actions', [btn(UI.copied === s.id ? 'Copied' : 'Copy', '', function () { copy(make(), s.id); }), waA])
     ]));
   });
