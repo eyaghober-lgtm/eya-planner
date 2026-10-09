@@ -23,7 +23,7 @@ var SEED = [
 var KEY = 'aya-planner-v2';
 var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, savedAt: 0, myName: 'Aya', rate: {}, unpaid: {}, pay: {}, order: {}, total: {}, cancelled: {}, skip: {}, cancels: {} };
 var S = load();
-var UI = { tab: 'today', viewDay: null, copied: '', editing: undefined };
+var UI = { q: '', flt: 'all', sort: 'added', tab: 'today', viewDay: null, copied: '', editing: undefined };
 
 function load() {
   var s = {};
@@ -377,7 +377,10 @@ function viewWeek(root, built) {
 
 function viewStudents(root, plan) {
   root.appendChild(btn('+ Add student', 'wide primary', function () { UI.editing = null; render(); }));
-  S.students.forEach(function (s) {
+  var vis = visibleStudents();
+  root.appendChild(filterBar(vis.length));
+  if (!vis.length) root.appendChild(h('p', 'empty', 'No student matches.'));
+  vis.forEach(function (s) {
     var c = CL[s.cluster || 'pending'] || CL.pending;
     var card = h('section', 'card' + (s.hold ? ' hold' : ''));
     card.appendChild(h('div', 'dayhead', [
@@ -475,6 +478,45 @@ function viewSend(root, plan) {
   });
 }
 
+/* ---------- search / filter / sort ---------- */
+function visibleStudents() {
+  var q = (UI.q || '').trim().toLowerCase();
+  var list = S.students.filter(function (s) {
+    if (q && s.name.toLowerCase().indexOf(q) < 0 && (s.area || '').toLowerCase().indexOf(q) < 0) return false;
+    if (UI.flt === 'owes') return dueOf(s) > 0;
+    if (UI.flt === 'hold') return !!s.hold;
+    if (UI.flt === 'active') return !s.hold;
+    return true;
+  });
+  if (UI.sort === 'name') list.sort(function (a, b) { return a.name.localeCompare(b.name); });
+  else if (UI.sort === 'owes') list.sort(function (a, b) { return dueOf(b) - dueOf(a); });
+  else if (UI.sort === 'total') list.sort(function (a, b) { return (S.total[b.id] || 0) - (S.total[a.id] || 0); });
+  return list;
+}
+function filterBar(shown) {
+  var box = h('section', 'filterbar');
+  var q = h('input', 'phonein', null, { type: 'search', id: 'q', value: UI.q, placeholder: 'Search a student…' });
+  q.setAttribute('aria-label', 'Search students');
+  q.oninput = function () {
+    UI.q = q.value; render();
+    var n = document.getElementById('q');
+    if (n) { n.focus(); try { n.setSelectionRange(n.value.length, n.value.length); } catch (e) {} }
+  };
+  box.appendChild(q);
+  var f = h('div', 'chips scroll');
+  [['all', 'All'], ['owes', 'Owes money'], ['active', 'Active'], ['hold', 'On hold']].forEach(function (o) {
+    f.appendChild(btn(o[1], 'chip', function () { UI.flt = o[0]; render(); }, UI.flt === o[0]));
+  });
+  box.appendChild(f);
+  var s = h('div', 'chips scroll', [h('span', 'lbl', 'Sort:')]);
+  [['added', 'Added'], ['name', 'Name A–Z'], ['owes', 'Owes most'], ['total', 'Most sessions']].forEach(function (o) {
+    s.appendChild(btn(o[1], 'chip', function () { UI.sort = o[0]; render(); }, UI.sort === o[0]));
+  });
+  box.appendChild(s);
+  box.appendChild(h('p', 'sub', 'Showing ' + shown + ' of ' + S.students.length + ' students'));
+  return box;
+}
+
 /* ---------- profile ---------- */
 function dueOf(s) { return (S.unpaid[s.id] || 0) * (S.rate[s.id] || 0); }
 function payBlock(s) {
@@ -533,7 +575,10 @@ function viewProfile(root) {
   ]));
   root.appendChild(h('section', 'card', [h('b', '', 'Your name'), nm]));
   root.appendChild(h('p', 'sub', 'Type each student’s total including lessons you taught before using this app. From now on the counter goes up by itself each time you tap “Mark done”. Cancelled lessons never count.'));
-  S.students.forEach(function (s) {
+  var vis = visibleStudents();
+  root.appendChild(filterBar(vis.length));
+  if (!vis.length) root.appendChild(h('p', 'empty', 'No student matches.'));
+  vis.forEach(function (s) {
     var wd = Object.keys(S.marks).filter(function (k) { return k.split('|')[1] === s.id; }).length;
     var inp = h('input', 'numin', null, { type: 'number', min: '0', value: String(S.total[s.id] || 0) });
     inp.setAttribute('inputmode', 'numeric');

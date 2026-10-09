@@ -178,3 +178,8 @@ nav{grid-template-columns:repeat(5,1fr)}.tab{font-size:11px}.tab .ico{width:40px
 .cardbody{animation:rise .3s ease both;border-top:1px dashed var(--line);margin-top:4px;padding-top:4px}
 .infobox{margin:10px 0;padding:10px 12px;border-radius:14px;background:#FFF3F9;border:1px solid var(--line);word-break:break-all}
 @media (prefers-color-scheme:dark){.infobox{background:#2A1B38}}
+.filterbar{padding:2px 0 4px}.filterbar .phonein{margin:0 0 6px}.filterbar .chips{margin:4px 0}
+.filterbar .chip{white-space:nowrap}
+main{grid-template-columns:minmax(0,1fr)}
+.filterbar,.chips.scroll{min-width:0;max-width:100%}
+body{overflow-x:hidden}
