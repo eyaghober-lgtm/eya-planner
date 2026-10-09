@@ -475,15 +475,15 @@ function viewSend(root, plan) {
 
 /* ---------- profile ---------- */
 function viewProfile(root) {
-  var grand = 0, weekDone = Object.keys(S.marks).length, canc = 0;
-  S.students.forEach(function (s) { grand += S.total[s.id] || 0; canc += S.cancels[s.id] || 0; });
+  var grand = 0, weekDone = Object.keys(S.marks).length, canc = 0, perWeek = 0;
+  S.students.forEach(function (s) { grand += S.total[s.id] || 0; canc += S.cancels[s.id] || 0; if (!s.hold) perWeek += s.per; });
   var nm = h('input', 'phonein', null, { type: 'text', value: S.myName, placeholder: 'Your name' });
   nm.setAttribute('aria-label', 'Your name');
   nm.onchange = function () { S.myName = nm.value.trim() || 'Aya'; save(); render(); };
   root.appendChild(h('section', 'hero', [
     h('div', 'herorow', [h('span', 'avatar', (S.myName || 'A').charAt(0).toUpperCase()), h('div', '', [h('div', 'herotitle', S.myName || 'Aya'), h('div', 'herosub', 'Teacher profile')])]),
     h('div', 'stats prof', [
-      [grand, 'Total sessions'], [weekDone, 'Done this week'], [canc, 'Cancelled']
+      [grand, 'Total sessions'], [perWeek, 'Sessions per week'], [weekDone, 'Done this week'], [canc, 'Cancelled']
     ].map(function (p) { return h('div', 'stat', [h('b', '', String(p[0])), h('span', '', p[1])]); }))
   ]));
   root.appendChild(h('section', 'card', [h('b', '', 'Your name'), nm]));
@@ -494,14 +494,23 @@ function viewProfile(root) {
     inp.setAttribute('inputmode', 'numeric');
     inp.setAttribute('aria-label', 'Total sessions for ' + s.name);
     inp.onchange = function () { S.total[s.id] = Math.max(0, parseInt(inp.value, 10) || 0); save(); render(); };
+    var wk = h('input', 'numin', null, { type: 'number', min: '1', max: '7', value: String(s.per) });
+    wk.setAttribute('inputmode', 'numeric');
+    wk.setAttribute('aria-label', 'Sessions per week for ' + s.name);
+    wk.onchange = function () { s.per = Math.min(7, Math.max(1, parseInt(wk.value, 10) || 1)); save(); render(); };
+    var row = function (label, ctr) { return h('div', 'dayhead prow', [h('span', 'lbl', label), ctr]); };
     root.appendChild(h('section', 'card' + (s.hold ? ' hold' : ''), [
-      h('div', 'dayhead', [h('div', 'who', [avatar(s), h('div', '', [h('b', 'name', s.name), h('div', 'sub', 'This week: ' + wd + ' done · cancelled: ' + (S.cancels[s.id] || 0))])]),
-        h('div', 'counter', [
-          btn('−', 'cbtn', function () { chg(function () { S.total[s.id] = Math.max(0, (S.total[s.id] || 0) - 1); }); }),
-          inp,
-          btn('+', 'cbtn', function () { chg(function () { S.total[s.id] = (S.total[s.id] || 0) + 1; }); })
-        ])
-      ])
+      h('div', 'who', [avatar(s), h('div', '', [h('b', 'name', s.name), h('div', 'sub', 'This week: ' + wd + ' / ' + needOf(s) + ' done · cancelled: ' + (S.cancels[s.id] || 0))])]),
+      row('Total sessions taught', h('div', 'counter', [
+        btn('−', 'cbtn', function () { chg(function () { S.total[s.id] = Math.max(0, (S.total[s.id] || 0) - 1); }); }),
+        inp,
+        btn('+', 'cbtn', function () { chg(function () { S.total[s.id] = (S.total[s.id] || 0) + 1; }); })
+      ])),
+      row('Sessions per week', h('div', 'counter', [
+        btn('−', 'cbtn', function () { chg(function () { s.per = Math.max(1, s.per - 1); }); }),
+        wk,
+        btn('+', 'cbtn', function () { chg(function () { s.per = Math.min(7, s.per + 1); }); })
+      ]))
     ]));
   });
 }

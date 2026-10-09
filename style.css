@@ -160,3 +160,5 @@ nav{grid-template-columns:repeat(5,1fr)}.tab{font-size:11px}.tab .ico{width:40px
 .stats.prof{grid-template-columns:repeat(3,1fr)}
 .counter .numin{width:64px}
 .timein{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:14px;font:inherit;font-weight:700;color:var(--ink);background:var(--card)}
+.stats.prof{grid-template-columns:repeat(2,1fr)}
+.prow{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}.prow .lbl{margin:0;font-weight:700}
