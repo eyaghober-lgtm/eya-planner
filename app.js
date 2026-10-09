@@ -177,13 +177,31 @@ function chg(fn) { fn(); save(); render(); }
 function copy(text, key) { try { navigator.clipboard.writeText(text); } catch (e) {} UI.copied = key; render(); }
 
 /* ---------- views ---------- */
+function avatar(s) {
+  var c = CL[s.cluster || 'pending'] || CL.pending;
+  var e = h('span', 'avatar', (s.name || '?').trim().charAt(0).toUpperCase());
+  e.style.background = c.color;
+  return e;
+}
+function nextHero(r, vd) {
+  var now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
+  var nxt = r.stops.filter(function (x) { return !S.marks[vd + '|' + x.id] && x.end > nowMin; })[0];
+  var box = h('section', 'hero');
+  if (!nxt) { box.appendChild(h('div', 'herolbl', 'All done')); box.appendChild(h('div', 'herotitle', 'No more lessons today')); return box; }
+  var s = BY[nxt.id], inMin = nxt.start - nowMin;
+  box.appendChild(h('div', 'herolbl', 'Next lesson'));
+  box.appendChild(h('div', 'herorow', [avatar(s), h('div', '', [h('div', 'herotitle', s.name), h('div', 'herosub', fmt(nxt.start) + ' – ' + fmt(nxt.end) + (inMin > 0 ? ' · in ' + (inMin >= 60 ? Math.floor(inMin / 60) + ' h ' + (inMin % 60) + ' min' : inMin + ' min') : ' · now'))])]));
+  box.appendChild(h('div', 'herosub', 'Leave school by ' + fmt(nxt.start - nxt.drive) + ' · ' + (nxt.drive - BUFFER) + ' min drive + parking'));
+  box.appendChild(h('div', 'actions', [a('Map', 'heroact', mapLink(s.map)), a('On my way', 'heroact', waLink(phoneOf(s), 'السلام عليكم حبيبتي، أنا في الطريق وبوصل الساعة ' + fmtAr(nxt.start) + ' تقريباً إن شاء الله'))]));
+  return box;
+}
 function stopCard(x, day, big) {
   var s = BY[x.id], c = CL[s.cluster || 'pending'] || CL.pending, key = day + '|' + x.id, done = !!S.marks[key];
   var card = h('div', 'stop' + (done ? ' done' : ''), null);
   card.style.borderLeftColor = c.color;
   card.appendChild(h('div', 'drive', '↓ ' + (x.drive - BUFFER) + ' min drive + ' + BUFFER + ' min parking' + (x.wait > 0 ? ' · ' + x.wait + ' min spare' : '')));
   card.appendChild(h('div', 'time', fmt(x.start) + ' – ' + fmt(x.end)));
-  card.appendChild(h('div', 'name', [s.name, (S.extra[x.id] || []).indexOf(day) >= 0 ? h('span', 'tag', 'MUST COME') : null]));
+  card.appendChild(h('div', 'name', [avatar(s), s.name, (S.extra[x.id] || []).indexOf(day) >= 0 ? h('span', 'tag', 'MUST COME') : null]));
   card.appendChild(h('div', 'sub', s.area || ''));
   if (s.durChoice) {
     var l = h('div', 'chips', [h('span', 'lbl', 'Length:')]);
@@ -231,6 +249,7 @@ function viewToday(root, plan) {
   root.appendChild(h('h2', '', (vd === real ? 'Today · ' : '') + FULL[vd]));
   if (!r.stops.length) { root.appendChild(h('p', 'empty', 'No lessons this day — enjoy your afternoon.')); return; }
   root.appendChild(h('p', 'sub', r.stops.length + ' lesson(s) · leave school ' + fmt(startOf(vd))));
+  if (vd === real) root.appendChild(nextHero(r, vd));
   var nav = dayNavLink(r.stops);
   if (nav) root.appendChild(a('Navigate whole route in Maps', 'navbtn', nav));
   r.stops.forEach(function (x) { root.appendChild(stopCard(x, vd)); });
@@ -277,7 +296,7 @@ function viewStudents(root, plan) {
     var c = CL[s.cluster || 'pending'] || CL.pending;
     var card = h('section', 'card' + (s.hold ? ' hold' : ''));
     card.appendChild(h('div', 'dayhead', [
-      h('div', '', [h('b', 'name', s.name), h('div', 'sub', (s.area ? s.area + ' · ' : '') + s.per + '×/week')]),
+      h('div', 'who', [avatar(s), h('div', '', [h('b', 'name', s.name), h('div', 'sub', (s.area ? s.area + ' · ' : '') + s.per + '×/week')])]),
       s.hold ? h('span', 'badge', 'On hold') : h('span', 'badge', c.label)
     ]));
     if (!s.hold) {
@@ -496,8 +515,19 @@ function render() {
   root.textContent = '';
   var tabs = document.getElementById('tabs');
   tabs.textContent = '';
+  var ICON = {
+    today: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    week: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+    students: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 5a3.5 3.5 0 0 1 0 7M18 14c2.2.6 3.5 2.4 3.5 6"/>',
+    send: '<path d="M21 3 10 14M21 3l-7 18-4-7-7-4z"/>'
+  };
   [['today', 'Today'], ['week', 'Week'], ['students', 'Students'], ['send', 'Send']].forEach(function (t) {
-    tabs.appendChild(btn(t[1], 'tab', function () { UI.tab = t[0]; render(); window.scrollTo(0, 0); }, UI.tab === t[0]));
+    var b = btn('', 'tab', function () { UI.tab = t[0]; render(); window.scrollTo(0, 0); }, UI.tab === t[0]);
+    b.textContent = '';
+    var ic = h('span', 'ico');
+    ic.innerHTML = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICON[t[0]] + '</svg>';
+    b.appendChild(ic); b.appendChild(h('span', 'tl', t[1]));
+    tabs.appendChild(b);
   });
   var held = S.students.length - STUDENTS.length;
   document.getElementById('count').textContent = STUDENTS.length + ' active' + (held ? ' · ' + held + ' on hold' : '');

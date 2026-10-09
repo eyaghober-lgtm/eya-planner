@@ -70,3 +70,35 @@ header button.primary{color:#6D3FC4}
 .phonein{display:block;width:100%;min-height:44px;margin:4px 0 8px;padding:0 12px;border:1px solid var(--line);border-radius:10px;font:inherit}
 .latelink{display:inline-flex;align-items:center;text-decoration:none;color:#fff;background:#B4500A;border-color:#B4500A}
 .navbtn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:12px;background:#17191C;color:#fff;font-weight:700;text-decoration:none;margin:6px 0}
+
+/* ===== v3 design pass: bottom tab bar, hero, avatars, dark mode ===== */
+body{padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+header{position:static;border-radius:0 0 22px 22px;padding-bottom:18px}
+nav{position:fixed;top:auto;bottom:0;left:0;right:0;z-index:5;display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line);box-shadow:0 -4px 18px #6d3fc41f}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:54px;background:transparent;border:0;border-radius:14px;color:var(--mute);font-size:12px;font-weight:700;padding:0}
+.tab .ico{display:grid;place-items:center;width:46px;height:28px;border-radius:14px;transition:background-color .25s ease,transform .25s ease}
+.tab.on{background:transparent;color:#6D3FC4}.tab.on .ico{background:#6d3fc41f;transform:translateY(-1px)}
+.avatar{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;color:#fff;font-weight:800;font-size:15px;margin-right:10px;flex-shrink:0;vertical-align:middle}
+.who{display:flex;align-items:center}.stop .name{display:flex;align-items:center;margin-top:4px}
+.hero{background:linear-gradient(135deg,#6D3FC4,#9B6BFF);color:#fff;border-radius:20px;padding:16px;box-shadow:0 8px 24px #6d3fc455;animation:rise .4s ease both}
+.herolbl{font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.85}
+.herorow{display:flex;align-items:center;gap:0;margin:8px 0 4px}.hero .avatar{width:44px;height:44px;font-size:19px;background:#ffffff33!important}
+.herotitle{font-size:22px;font-weight:800}.herosub{font-size:14px;opacity:.92;margin-top:2px}
+.heroact{display:flex;align-items:center;justify-content:center;min-height:44px;border-radius:12px;background:#fff;color:#6D3FC4;font-weight:800;text-decoration:none}
+.hero .actions{margin-top:12px}.heroact.off{background:#ffffff55;color:#fff}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#14101F;--card:#1E1830;--ink:#F1ECFB;--mute:#A99FC4;--line:#322A4A}
+  body{background:var(--bg);color:var(--ink)}
+  button,input,.phonein,dialog{background:var(--card);color:var(--ink);border-color:var(--line)}
+  .stat,.stop{background:var(--card)}.stop.done{background:#17302B}
+  pre{background:#14101F;color:var(--ink)}
+  .chip.on{background:#8B5CF6;border-color:#8B5CF6}
+  .tab{background:transparent;border:0}.tab.on{color:#B79BFF}.tab.on .ico{background:#8b5cf633}
+  .warn{background:#3A2C10;color:#F5D58F}.badge{background:#3A2C10;color:#F5D58F}
+  .chip.refuse.on{background:#4A1D1D;color:#F6B4B4;border-color:#7A3030}
+  .navbtn{background:#2A2342}
+  nav{background:var(--card)}
+}
+.latelink{border-radius:10px;min-height:44px;padding:0 14px;font-size:14px;font-weight:700;border:1px solid #B4500A}
+.latelink.off{background:#C9CCD2;border-color:#C9CCD2;pointer-events:none}
+.stop .time{margin-top:2px}
