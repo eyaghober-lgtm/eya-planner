@@ -418,6 +418,7 @@ function viewStudents(root, plan) {
     ph.setAttribute('inputmode', 'tel');
     ph.setAttribute('aria-label', 'WhatsApp number for ' + s.name);
     ph.onchange = function () { S.phones[s.id] = ph.value.trim(); save(); render(); };
+    live(ph);
     card.appendChild(h('div', 'lbl', 'WhatsApp number (saved on this phone)'));
     card.appendChild(ph);
     card.appendChild(h('div', 'actions', [a('Map', 'map', mapLink(s.map)), a('WhatsApp', 'wa', waLink(phoneOf(s)))]));
@@ -480,10 +481,12 @@ function payBlock(s) {
   rate.setAttribute('inputmode', 'numeric');
   rate.setAttribute('aria-label', 'Price per session for ' + s.name);
   rate.onchange = function () { S.rate[s.id] = Math.max(0, parseFloat(rate.value) || 0); save(); render(); };
+  live(rate);
   var un = h('input', 'numin', null, { type: 'number', min: '0', value: String(S.unpaid[s.id] || 0) });
   un.setAttribute('inputmode', 'numeric');
   un.setAttribute('aria-label', 'Unpaid sessions for ' + s.name);
   un.onchange = function () { S.unpaid[s.id] = Math.max(0, parseInt(un.value, 10) || 0); save(); render(); };
+  live(un);
   var due = dueOf(s), n = S.unpaid[s.id] || 0, log = S.pay[s.id] || [], last = log[log.length - 1];
   var row = function (label, ctr) { return h('div', 'dayhead prow', [h('span', 'lbl', label), ctr]); };
   var box = h('div', 'paybox', [
@@ -520,6 +523,7 @@ function viewProfile(root) {
   var nm = h('input', 'phonein', null, { type: 'text', value: S.myName, placeholder: 'Your name' });
   nm.setAttribute('aria-label', 'Your name');
   nm.onchange = function () { S.myName = nm.value.trim() || 'Aya'; save(); render(); };
+  live(nm);
   root.appendChild(h('section', 'hero', [
     h('div', 'herorow', [h('span', 'avatar', (S.myName || 'A').charAt(0).toUpperCase()), h('div', '', [h('div', 'herotitle', S.myName || 'Aya'), h('div', 'herosub', 'Teacher profile')])]),
     h('div', 'stats prof', [
@@ -534,6 +538,7 @@ function viewProfile(root) {
     inp.setAttribute('inputmode', 'numeric');
     inp.setAttribute('aria-label', 'Total sessions for ' + s.name);
     inp.onchange = function () { S.total[s.id] = Math.max(0, parseInt(inp.value, 10) || 0); save(); render(); };
+    live(inp);
     var row = function (label, ctr) { return h('div', 'dayhead prow', [h('span', 'lbl', label), ctr]); };
     var open = UI.profOpen === s.id, dueNow = dueOf(s);
     var head = h('button', 'cardhead', [
@@ -609,6 +614,7 @@ function settingsCard() {
   my.setAttribute('inputmode', 'tel');
   my.setAttribute('aria-label', 'My WhatsApp number');
   my.onchange = function () { S.myPhone = my.value.trim(); save(); render(); };
+  live(my);
   var card = h('section', 'card', [h('b', '', 'My settings'), h('div', 'lbl', 'My number — sends my schedule straight to my own WhatsApp'), my]);
   var rm = h('div', 'chips', [h('span', 'lbl', 'Remind me before leaving:')]);
   [10, 20, 30].forEach(function (n) { rm.appendChild(btn(n + ' min', 'chip', function () { chg(function () { S.remindMin = n; }); }, S.remindMin === n)); });
@@ -711,7 +717,14 @@ document.getElementById('form').onsubmit = function () {
 };
 
 /* ---------- main render ---------- */
+var QUIET = false;
+function live(el) {
+  var commit = el.onchange;
+  el.oninput = function () { QUIET = true; try { commit.call(el); } finally { QUIET = false; } };
+  return el;
+}
 function render() {
+  if (QUIET) return;
   sync();
   var built = buildPlan(), root = document.getElementById('view');
   root.textContent = '';
@@ -736,6 +749,9 @@ function render() {
   var hr = new Date().getHours();
   var greet = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
   document.getElementById('count').textContent = greet + ', ' + (S.myName || 'Aya') + ' · ' + STUDENTS.length + ' active' + (held ? ' · ' + held + ' on hold' : '');
+  if (/^[a-z0-9-]+-[a-z0-9]{9}-[a-z0-9-]+\.vercel\.app$/.test(location.hostname) && location.hostname.indexOf('-git-') < 0) {
+    root.appendChild(h('div', 'warn', 'You opened a temporary link. Data saved here will not appear on your main app link. Open your main link, then use Send → Restore backup.'));
+  }
   if (UI.tab === 'today') viewToday(root, built.plan);
   else if (UI.tab === 'week') viewWeek(root, built);
   else if (UI.tab === 'students') viewStudents(root, built.plan);
@@ -744,6 +760,7 @@ function render() {
   scheduleReminders(built.plan);
   if (UI.editing !== undefined && !document.getElementById('dlg').open) openForm();
 }
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 render();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
 
