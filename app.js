@@ -21,7 +21,7 @@ var SEED = [
   { id: 'lulwa', name: 'Lulwa', per: 3, dur: 1, cluster: 'north', area: 'Al Qirawan', lat: 24.862, lng: 46.612, km: null, map: 'https://maps.app.goo.gl/msV96mfUppFcS7PXA' }
 ];
 var KEY = 'aya-planner-v2';
-var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, myName: 'Aya', rate: {}, unpaid: {}, pay: {}, order: {}, total: {}, cancelled: {}, skip: {}, cancels: {} };
+var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, savedAt: 0, myName: 'Aya', rate: {}, unpaid: {}, pay: {}, order: {}, total: {}, cancelled: {}, skip: {}, cancels: {} };
 var S = load();
 var UI = { tab: 'today', viewDay: null, copied: '', editing: undefined };
 
@@ -33,7 +33,8 @@ function load() {
   if (!o.students) o.students = JSON.parse(JSON.stringify(SEED));
   return o;
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+var SAVE_OK = true;
+function save() { try { S.savedAt = Date.now(); localStorage.setItem(KEY, JSON.stringify(S)); SAVE_OK = true; } catch (e) { SAVE_OK = false; } }
 
 /* ---------- helpers ---------- */
 var STUDENTS = [], BY = {};
@@ -628,6 +629,17 @@ function settingsCard() {
       else alert('Notifications are blocked. Allow them in the browser/site settings.');
     });
   }, S.remind));
+  var standalone = false;
+  try { standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; } catch (e) {}
+  var nums = S.students.filter(function (s) { return phoneOf(s); }).length;
+  card.appendChild(h('div', 'infobox', [
+    h('b', '', 'Where is my data?'),
+    h('div', 'sub', 'Address: ' + location.host),
+    h('div', 'sub', 'Opened as: ' + (standalone ? 'Home screen app' : 'Browser tab')),
+    h('div', 'sub', 'WhatsApp numbers saved: ' + nums + ' of ' + S.students.length + ' students'),
+    h('div', 'sub', 'Last saved: ' + (S.savedAt ? new Date(S.savedAt).toLocaleString() : 'nothing saved yet in this copy')),
+    SAVE_OK ? null : h('div', 'sub', '⚠ This phone is blocking saving. Turn off private browsing.')
+  ]));
   card.appendChild(h('div', 'lbl', 'Backup — your data lives only on this phone'));
   var file = h('input', '', null, { type: 'file', accept: 'application/json' });
   file.style.display = 'none';
