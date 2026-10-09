@@ -79,7 +79,7 @@ function drive(a, b) {
 function durOf(id, dur, day) { return (day && S.durDay[day + '|' + id]) || (dur && dur[id]) || BY[id].dur || 1; }
 function defStart(day) { return day === 'Sat' ? 10 * 60 : (day === 'Fri' ? 12 * 60 : START); }
 function startOf(day) { return S.dayStart[day] || defStart(day); }
-function beforeOf(id) { var v = S.before[id]; if (v === undefined) v = BY[id].before || 0; return v; }
+function beforeOf() { return 0; }
 function perms(a) {
   if (a.length <= 1) return [a.slice()];
   var out = [];
@@ -90,7 +90,7 @@ function walk(order, dur, day) {
   var cur = SCHOOL, t = startOf(day), stops = [], ok = true, sum = 0;
   order.forEach(function (id) {
     var d = Math.round(drive(cur, BY[id]) * (S.traffic[day] || 1) / 5) * 5 + BUFFER;
-    var arrive = t + d, start = Math.max(arrive, S.after[id] || 0);
+    var arrive = t + d, start = arrive;
     if (day === 'Sat' || day === 'Fri') start = Math.ceil(start / 30) * 30;
     var end = start + durOf(id, dur, day) * 60;
     stops.push({ id: id, drive: d, wait: start - arrive, start: start, end: end });
@@ -364,18 +364,6 @@ function viewStudents(root, plan) {
         }, ref));
       });
       card.appendChild(ch);
-      card.appendChild(h('div', 'lbl', 'Lesson can start'));
-      var af = h('div', 'chips');
-      [0, 15 * 60, 16 * 60, 17 * 60].forEach(function (m) {
-        af.appendChild(btn(m ? 'After ' + fmt(m).replace(':00', '') : 'Any time', 'chip', function () { chg(function () { if (m) S.after[s.id] = m; else delete S.after[s.id]; }); }, (S.after[s.id] || 0) === m));
-      });
-      card.appendChild(af);
-      card.appendChild(h('div', 'lbl', 'Lesson must finish'));
-      var bf = h('div', 'chips');
-      [0, 17 * 60, 18 * 60].forEach(function (m) {
-        bf.appendChild(btn(m ? 'Done by ' + fmt(m).replace(':00', '') : 'Any time', 'chip', function () { chg(function () { S.before[s.id] = m; }); }, beforeOf(s.id) === m));
-      });
-      card.appendChild(bf);
       card.appendChild(h('div', 'lbl', (S.extra[s.id] || []).length ? 'Must come this week' : 'Must-come day? (e.g. before an exam)'));
       var ex = h('div', 'chips');
       WORK.forEach(function (d) {
