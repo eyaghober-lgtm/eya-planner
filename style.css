@@ -162,3 +162,11 @@ nav{grid-template-columns:repeat(5,1fr)}.tab{font-size:11px}.tab .ico{width:40px
 .timein{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:14px;font:inherit;font-weight:700;color:var(--ink);background:var(--card)}
 .stats.prof{grid-template-columns:repeat(2,1fr)}
 .prow{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}.prow .lbl{margin:0;font-weight:700}
+.stat.wide{grid-column:1/-1}.hero .stat.wide b{font-size:22px}
+.paybox{margin-top:12px;padding:12px;border-radius:16px;background:#FFF3F9;border:1px solid var(--line)}
+.paytitle{font-weight:800;color:#A23FB0}
+.due{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:10px 12px;border-radius:14px;background:#fff;font-size:18px}
+.due b{color:#A23FB0;font-size:22px}
+.paidbtn{background:linear-gradient(135deg,#1F9D55,#2DBE74);color:#fff;border-color:transparent;font-weight:800}
+.paybox .prow:first-of-type{border-top:0;margin-top:4px}
+@media (prefers-color-scheme:dark){.paybox{background:#2A1B38}.due{background:#1B1224}.due b,.paytitle{color:#F2A6D0}}

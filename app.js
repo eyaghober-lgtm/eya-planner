@@ -21,7 +21,7 @@ var SEED = [
   { id: 'lulwa', name: 'Lulwa', per: 3, dur: 1, cluster: 'north', area: 'Al Qirawan', lat: 24.862, lng: 46.612, km: null, map: 'https://maps.app.goo.gl/msV96mfUppFcS7PXA' }
 ];
 var KEY = 'aya-planner-v2';
-var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, myName: 'Aya', order: {}, total: {}, cancelled: {}, skip: {}, cancels: {} };
+var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, myName: 'Aya', rate: {}, unpaid: {}, pay: {}, order: {}, total: {}, cancelled: {}, skip: {}, cancels: {} };
 var S = load();
 var UI = { tab: 'today', viewDay: null, copied: '', editing: undefined };
 
@@ -219,8 +219,8 @@ function stopCard(x, day, opts) {
     a('I’ve arrived', 'wa', waLink(phoneOf(s), 'السلام عليكم حبيبتي، وصلت وأنا عند الباب'), function () { stopTrack(); }),
     btn(done ? 'Done ✓' : 'Mark done', 'donebtn', function () {
       chg(function () {
-        if (S.marks[key]) { delete S.marks[key]; S.total[x.id] = Math.max(0, (S.total[x.id] || 0) - 1); }
-        else { S.marks[key] = true; S.total[x.id] = (S.total[x.id] || 0) + 1; stopTrack(); }
+        if (S.marks[key]) { delete S.marks[key]; S.total[x.id] = Math.max(0, (S.total[x.id] || 0) - 1); S.unpaid[x.id] = Math.max(0, (S.unpaid[x.id] || 0) - 1); }
+        else { S.marks[key] = true; S.total[x.id] = (S.total[x.id] || 0) + 1; S.unpaid[x.id] = (S.unpaid[x.id] || 0) + 1; stopTrack(); }
       });
     }, done)
   ]);
@@ -474,17 +474,57 @@ function viewSend(root, plan) {
 }
 
 /* ---------- profile ---------- */
+function dueOf(s) { return (S.unpaid[s.id] || 0) * (S.rate[s.id] || 0); }
+function payBlock(s) {
+  var rate = h('input', 'numin', null, { type: 'number', min: '0', value: S.rate[s.id] ? String(S.rate[s.id]) : '', placeholder: '0' });
+  rate.setAttribute('inputmode', 'numeric');
+  rate.setAttribute('aria-label', 'Price per session for ' + s.name);
+  rate.onchange = function () { S.rate[s.id] = Math.max(0, parseFloat(rate.value) || 0); save(); render(); };
+  var un = h('input', 'numin', null, { type: 'number', min: '0', value: String(S.unpaid[s.id] || 0) });
+  un.setAttribute('inputmode', 'numeric');
+  un.setAttribute('aria-label', 'Unpaid sessions for ' + s.name);
+  un.onchange = function () { S.unpaid[s.id] = Math.max(0, parseInt(un.value, 10) || 0); save(); render(); };
+  var due = dueOf(s), n = S.unpaid[s.id] || 0, log = S.pay[s.id] || [], last = log[log.length - 1];
+  var row = function (label, ctr) { return h('div', 'dayhead prow', [h('span', 'lbl', label), ctr]); };
+  var box = h('div', 'paybox', [
+    h('div', 'paytitle', 'Payment'),
+    row('Price per session (SAR)', rate),
+    row('Sessions not paid yet', h('div', 'counter', [
+      btn('−', 'cbtn', function () { chg(function () { S.unpaid[s.id] = Math.max(0, n - 1); }); }),
+      un,
+      btn('+', 'cbtn', function () { chg(function () { S.unpaid[s.id] = n + 1; }); })
+    ])),
+    h('div', 'due', [h('span', '', 'Amount due'), h('b', '', due + ' SAR')]),
+    h('div', 'sub', n + ' sessions × ' + (S.rate[s.id] || 0) + ' SAR')
+  ]);
+  var msg = 'السلام عليكم ورحمة الله وبركاته\nأتمنى تكونون بخير.\nتذكير لطيف: عدد الحصص المستحقة لـ ' + s.name + ' هو ' + n + ' حصة، والمبلغ ' + due + ' ريال.\nشاكرة لكم تعاونكم 🌹';
+  box.appendChild(h('div', 'actions', [
+    btn('Paid · reset', 'paidbtn', function () {
+      if (!n) { alert('No unpaid sessions for ' + s.name + '.'); return; }
+      if (!confirm(s.name + ' paid ' + due + ' SAR for ' + n + ' sessions?\nThe unpaid counter goes back to 0 (total sessions stay).')) return;
+      chg(function () { (S.pay[s.id] = S.pay[s.id] || []).push({ d: new Date().toISOString().slice(0, 10), amt: due, n: n }); S.unpaid[s.id] = 0; });
+    }),
+    a('Remind on WhatsApp', 'wa', due > 0 ? waLink(phoneOf(s), msg) : '')
+  ]));
+  if (last) {
+    box.appendChild(h('div', 'sub', 'Last paid: ' + last.d + ' · ' + last.amt + ' SAR (' + last.n + ' sessions)'));
+    box.appendChild(btn('Undo last payment', 'cancelbtn', function () {
+      if (confirm('Put the ' + last.n + ' sessions back as unpaid?')) chg(function () { var l = S.pay[s.id]; var z = l.pop(); S.unpaid[s.id] = (S.unpaid[s.id] || 0) + z.n; });
+    }));
+  }
+  return box;
+}
 function viewProfile(root) {
-  var grand = 0, weekDone = Object.keys(S.marks).length, canc = 0, perWeek = 0;
-  S.students.forEach(function (s) { grand += S.total[s.id] || 0; canc += S.cancels[s.id] || 0; if (!s.hold) perWeek += s.per; });
+  var money = 0, grand = 0, weekDone = Object.keys(S.marks).length, canc = 0, perWeek = 0;
+  S.students.forEach(function (s) { grand += S.total[s.id] || 0; canc += S.cancels[s.id] || 0; if (!s.hold) perWeek += s.per; money += dueOf(s); });
   var nm = h('input', 'phonein', null, { type: 'text', value: S.myName, placeholder: 'Your name' });
   nm.setAttribute('aria-label', 'Your name');
   nm.onchange = function () { S.myName = nm.value.trim() || 'Aya'; save(); render(); };
   root.appendChild(h('section', 'hero', [
     h('div', 'herorow', [h('span', 'avatar', (S.myName || 'A').charAt(0).toUpperCase()), h('div', '', [h('div', 'herotitle', S.myName || 'Aya'), h('div', 'herosub', 'Teacher profile')])]),
     h('div', 'stats prof', [
-      [grand, 'Total sessions'], [perWeek, 'Sessions per week'], [weekDone, 'Done this week'], [canc, 'Cancelled']
-    ].map(function (p) { return h('div', 'stat', [h('b', '', String(p[0])), h('span', '', p[1])]); }))
+      [grand, 'Total sessions'], [perWeek, 'Sessions per week'], [weekDone, 'Done this week'], [canc, 'Cancelled'], [money + ' SAR', 'Money to collect']
+    ].map(function (p, i) { return h('div', 'stat' + (i === 4 ? ' wide' : ''), [h('b', '', String(p[0])), h('span', '', p[1])]); }))
   ]));
   root.appendChild(h('section', 'card', [h('b', '', 'Your name'), nm]));
   root.appendChild(h('p', 'sub', 'Type each student’s total including lessons you taught before using this app. From now on the counter goes up by itself each time you tap “Mark done”. Cancelled lessons never count.'));
@@ -510,7 +550,8 @@ function viewProfile(root) {
         btn('−', 'cbtn', function () { chg(function () { s.per = Math.max(1, s.per - 1); }); }),
         wk,
         btn('+', 'cbtn', function () { chg(function () { s.per = Math.min(7, s.per + 1); }); })
-      ]))
+      ])),
+      payBlock(s)
     ]));
   });
 }
