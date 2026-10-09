@@ -67,3 +67,5 @@ header button.primary{color:#6D3FC4}
 .stop.done{animation:pop .3s ease}
 .primary.wide{animation:glow 2.8s ease-in-out infinite}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.phonein{display:block;width:100%;min-height:44px;margin:4px 0 8px;padding:0 12px;border:1px solid var(--line);border-radius:10px;font:inherit}
+.latelink{display:inline-flex;align-items:center;text-decoration:none;color:#fff;background:#B4500A;border-color:#B4500A}

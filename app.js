@@ -21,7 +21,7 @@ var SEED = [
   { id: 'lulwa', name: 'Lulwa', per: 3, dur: 1, cluster: 'north', area: 'Al Qirawan', lat: 24.862, lng: 46.612, km: null, map: 'https://maps.app.goo.gl/msV96mfUppFcS7PXA' }
 ];
 var KEY = 'aya-planner-v2';
-var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '' };
+var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20 };
 var S = load();
 var UI = { tab: 'today', viewDay: null, copied: '', editing: undefined };
 
@@ -201,7 +201,15 @@ function stopCard(x, day, big) {
     }, done)
   ]);
   card.appendChild(act);
+  var late = h('div', 'chips', [h('span', 'lbl', 'Running late:')]);
+  [10, 20, 30].forEach(function (n) {
+    late.appendChild(a(n + ' min', 'chip latelink', waLink(phoneOf(s), lateMsg(s, x.start + n))));
+  });
+  card.appendChild(late);
   return card;
+}
+function lateMsg(s, newStart) {
+  return 'السلام عليكم حبيبتي، عذراً منك والله، بتأخر عليكم شوي بسبب الزحمة. إن شاء الله أوصل الساعة ' + fmtAr(newStart) + ' تقريباً. الله يعطيكم العافية على تفهمكم 🌹';
 }
 function dayRoute(plan, d) { return route(plan[d], S.dur, d); }
 
@@ -305,6 +313,12 @@ function viewStudents(root, plan) {
       }
     }
     if (s.note) card.appendChild(h('p', 'sub', s.note));
+    var ph = h('input', 'phonein', null, { type: 'tel', placeholder: 'WhatsApp number (05XXXXXXXX)', value: phoneOf(s) });
+    ph.setAttribute('inputmode', 'tel');
+    ph.setAttribute('aria-label', 'WhatsApp number for ' + s.name);
+    ph.onchange = function () { S.phones[s.id] = ph.value.trim(); save(); render(); };
+    card.appendChild(h('div', 'lbl', 'WhatsApp number (saved on this phone)'));
+    card.appendChild(ph);
     card.appendChild(h('div', 'actions', [a('Map', 'map', mapLink(s.map)), a('WhatsApp', 'wa', waLink(phoneOf(s)))]));
     card.appendChild(h('div', 'actions', [
       btn(s.hold ? 'Resume' : 'Hold', '', function () { chg(function () { s.hold = !s.hold; }); }),
@@ -329,6 +343,7 @@ function viewSend(root, plan) {
     lines.push('');
   });
   var sg = JSON.stringify(sig), approved = !!S.approvedSig && S.approvedSig === sg;
+  root.appendChild(settingsCard());
   root.appendChild(h('h2', '', 'Approve & send'));
   root.appendChild(h('p', 'sub', approved ? 'Plan approved. Your schedule is first, then a message for each student.' : (S.approvedSig ? 'You changed the plan after approving — approve again to refresh the messages.' : 'Happy with the week? Approve it to unlock the messages.')));
   root.appendChild(btn(approved ? 'Approved ✓' : 'Approve this week', 'wide primary', function () { chg(function () { S.approvedSig = approved ? '' : sg; }); }, approved));
@@ -339,7 +354,7 @@ function viewSend(root, plan) {
   var mine = lines.length ? 'MY LESSONS THIS WEEK\n\n' + lines.join('\n').trim() : 'No lessons planned this week.';
   root.appendChild(h('section', 'card', [
     h('b', '', 'My schedule'), h('pre', '', mine),
-    h('div', 'actions', [btn(UI.copied === '__me' ? 'Copied' : 'Copy', '', function () { copy(mine, '__me'); }), a('Send to my WhatsApp', 'wa', 'https://wa.me/?text=' + encodeURIComponent(mine))])
+    h('div', 'actions', [btn(UI.copied === '__me' ? 'Copied' : 'Copy', '', function () { copy(mine, '__me'); }), a('Send to my WhatsApp', 'wa', S.myPhone ? waLink(S.myPhone, mine) : 'https://wa.me/?text=' + encodeURIComponent(mine))])
   ]));
   STUDENTS.forEach(function (s) {
     var ls = lessonsBy[s.id] || [];
@@ -354,6 +369,53 @@ function viewSend(root, plan) {
       h('b', '', s.name), h('pre', '', text),
       h('div', 'actions', [btn(UI.copied === s.id ? 'Copied' : 'Copy', '', function () { copy(text, s.id); }), a('Send on WhatsApp', 'wa', waLink(phoneOf(s), text))])
     ]));
+  });
+}
+
+/* ---------- settings & reminders ---------- */
+function settingsCard() {
+  var my = h('input', 'phonein', null, { type: 'tel', placeholder: 'My WhatsApp number (05XXXXXXXX)', value: S.myPhone });
+  my.setAttribute('inputmode', 'tel');
+  my.setAttribute('aria-label', 'My WhatsApp number');
+  my.onchange = function () { S.myPhone = my.value.trim(); save(); render(); };
+  var card = h('section', 'card', [h('b', '', 'My settings'), h('div', 'lbl', 'My number — sends my schedule straight to my own WhatsApp'), my]);
+  var rm = h('div', 'chips', [h('span', 'lbl', 'Remind me before leaving:')]);
+  [10, 20, 30].forEach(function (n) { rm.appendChild(btn(n + ' min', 'chip', function () { chg(function () { S.remindMin = n; }); }, S.remindMin === n)); });
+  card.appendChild(rm);
+  var supported = 'Notification' in window;
+  card.appendChild(btn(S.remind ? 'Reminders ON ✓' : 'Turn on reminders', 'wide' + (S.remind ? '' : ' primary'), function () {
+    if (S.remind) { chg(function () { S.remind = false; }); return; }
+    if (!supported) { alert('This browser does not support notifications.'); return; }
+    Notification.requestPermission().then(function (p) {
+      if (p === 'granted') { S.remind = true; save(); notify('Reminders are on', 'You will be told when it is time to leave for each lesson.'); render(); }
+      else alert('Notifications are blocked. Allow them in the browser/site settings.');
+    });
+  }, S.remind));
+  card.appendChild(h('p', 'sub', 'Reminders ring while the app is open or running in the background on your phone. If the phone closes the app completely, open it once and today’s reminders are set again.'));
+  return card;
+}
+function notify(title, body) {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) navigator.serviceWorker.ready.then(function (r) { r.showNotification(title, { body: body, icon: 'icons/icon.svg', vibrate: [150, 80, 150] }); });
+    else new Notification(title, { body: body });
+  } catch (e) {}
+}
+var TIMERS = [];
+function scheduleReminders(plan) {
+  TIMERS.forEach(clearTimeout); TIMERS = [];
+  if (!S.remind || !('Notification' in window) || Notification.permission !== 'granted') return;
+  var JS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], d = JS[new Date().getDay()], now = new Date();
+  var nowMin = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  var r = dayRoute(plan, d), prevEnd = startOf(d);
+  r.stops.forEach(function (x) {
+    var leave = x.start - x.drive;
+    var at = Math.min(leave, x.start) - S.remindMin;
+    if (S.marks[d + '|' + x.id]) return;
+    var ms = (at - nowMin) * 60000;
+    if (ms > 0 && ms < 864e5) TIMERS.push(setTimeout(function () {
+      notify('Lesson at ' + fmt(x.start) + ' — ' + BY[x.id].name, 'Leave in ' + S.remindMin + ' min · drive ' + (x.drive - BUFFER) + ' min + parking');
+    }, ms));
   });
 }
 
@@ -406,6 +468,7 @@ function render() {
   else if (UI.tab === 'week') viewWeek(root, built);
   else if (UI.tab === 'students') viewStudents(root, built.plan);
   else viewSend(root, built.plan);
+  scheduleReminders(built.plan);
   if (UI.editing !== undefined && !document.getElementById('dlg').open) openForm();
 }
 render();
