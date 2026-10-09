@@ -7,7 +7,7 @@ var AR_DAY = { Sat: 'السبت', Sun: 'الأحد', Mon: 'الاثنين', Tue:
 var START = 14 * 60, LIMIT = 20 * 60, EARLY_LIMIT = 19 * 60, BUFFER = 10;
 var CL = {
   west: { label: 'West', color: '#1D5FA8', tint: '#E6EFFA' },
-  far: { label: 'Far west', color: '#5B3FC4', tint: '#EEEAFB' },
+  far: { label: 'Far west', color: '#7A4FD6', tint: '#EEEAFB' },
   east: { label: 'East', color: '#B4500A', tint: '#FBEEE4' },
   north: { label: 'North', color: '#0B7468', tint: '#E3F2EF' },
   pending: { label: 'Location pending', color: '#5F6672', tint: '#EDEEF0' }
@@ -530,7 +530,9 @@ function render() {
     tabs.appendChild(b);
   });
   var held = S.students.length - STUDENTS.length;
-  document.getElementById('count').textContent = STUDENTS.length + ' active' + (held ? ' · ' + held + ' on hold' : '');
+  var hr = new Date().getHours();
+  var greet = hr < 12 ? 'Good morning' : hr < 18 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('count').textContent = greet + ', Aya · ' + STUDENTS.length + ' active' + (held ? ' · ' + held + ' on hold' : '');
   if (UI.tab === 'today') viewToday(root, built.plan);
   else if (UI.tab === 'week') viewWeek(root, built);
   else if (UI.tab === 'students') viewStudents(root, built.plan);
