@@ -4,7 +4,7 @@ var WEEK = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 var WORK = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu'];
 var FULL = { Sat: 'Saturday', Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday' };
 var AR_DAY = { Sat: 'السبت', Sun: 'الأحد', Mon: 'الاثنين', Tue: 'الثلاثاء', Wed: 'الأربعاء', Thu: 'الخميس', Fri: 'الجمعة' };
-var START = 14 * 60, LIMIT = 20 * 60, EARLY_LIMIT = 20 * 60, BUFFER = 10;
+var START = 14 * 60, LIMIT = 20 * 60 + 30, EARLY_LIMIT = 20 * 60 + 30, BUFFER = 10;
 var CL = {
   west: { label: 'West', color: '#1D5FA8', tint: '#E6EFFA' },
   far: { label: 'Far west', color: '#7A4FD6', tint: '#EEEAFB' },
