@@ -692,6 +692,13 @@ function settingsCard() {
     h('div', 'sub', 'Last saved: ' + (S.savedAt ? new Date(S.savedAt).toLocaleString() : 'nothing saved yet in this copy')),
     SAVE_OK ? null : h('div', 'sub', '⚠ This phone is blocking saving. Turn off private browsing.')
   ]));
+  var lines = S.students.map(function (s) { return s.name + ': ' + (phoneOf(s) || '—'); });
+  var listText = lines.join('\n');
+  card.appendChild(h('div', 'infobox', [
+    h('b', '', 'All WhatsApp numbers'),
+    h('pre', 'numlist', listText),
+    btn(UI.copied === '__nums' ? 'Copied' : 'Copy the list', 'wide', function () { copy(listText, '__nums'); })
+  ]));
   card.appendChild(h('div', 'lbl', 'Backup — your data lives only on this phone'));
   var file = h('input', '', null, { type: 'file', accept: 'application/json' });
   file.style.display = 'none';

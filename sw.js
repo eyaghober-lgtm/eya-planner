@@ -1,4 +1,4 @@
-var CACHE = 'aya-planner-v2-bloom17';
+var CACHE = 'aya-planner-v2-bloom18';
 var FILES = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'icons/icon.svg'];
 self.addEventListener('install', function (e) { e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); })); self.skipWaiting(); });
 self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim()); });

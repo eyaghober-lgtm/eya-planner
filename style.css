@@ -183,3 +183,4 @@ nav{grid-template-columns:repeat(5,1fr)}.tab{font-size:11px}.tab .ico{width:40px
 main{grid-template-columns:minmax(0,1fr)}
 .filterbar,.chips.scroll{min-width:0;max-width:100%}
 body{overflow-x:hidden}
+.numlist{margin:6px 0;background:transparent;padding:0;font-size:15px;word-break:normal}
