@@ -542,3 +542,13 @@ function render() {
 }
 render();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
+
+document.getElementById('refresh').onclick = function () {
+  var b = this;
+  b.classList.add('spin');
+  b.querySelector('span').textContent = 'Updating…';
+  var jobs = [];
+  if ('caches' in window) jobs.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k); })); }));
+  if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); }));
+  Promise.all(jobs).catch(function () {}).then(function () { setTimeout(function () { location.reload(); }, 400); });
+};

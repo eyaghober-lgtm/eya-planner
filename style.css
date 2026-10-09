@@ -139,3 +139,6 @@ nav{border-radius:24px 24px 0 0;box-shadow:0 -6px 22px #d16ba530}
 .actions a.off,.latelink.off{background:#F1E4EF;border-color:#F1E4EF;color:#8A7490}
 .hero .actions a.heroact.off{background:#ffffff40;color:#fff}
 @media (prefers-color-scheme:dark){.actions a.off,.latelink.off{background:#3A2B4A;border-color:#3A2B4A;color:#B49BC0}.hero .actions a.heroact.off{background:#ffffff30;color:#fff}}
+#refresh{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid #ffffff66;background:#ffffff2e;color:#fff;font-weight:800;font-size:14px;position:relative;z-index:1;backdrop-filter:blur(4px)}
+#refresh.spin svg{animation:turn .8s linear infinite}
+@keyframes turn{to{transform:rotate(360deg)}}
