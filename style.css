@@ -69,3 +69,4 @@ header button.primary{color:#6D3FC4}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .phonein{display:block;width:100%;min-height:44px;margin:4px 0 8px;padding:0 12px;border:1px solid var(--line);border-radius:10px;font:inherit}
 .latelink{display:inline-flex;align-items:center;text-decoration:none;color:#fff;background:#B4500A;border-color:#B4500A}
+.navbtn{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:12px;background:#17191C;color:#fff;font-weight:700;text-decoration:none;margin:6px 0}

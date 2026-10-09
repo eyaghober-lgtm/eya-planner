@@ -211,6 +211,14 @@ function stopCard(x, day, big) {
 function lateMsg(s, newStart) {
   return 'السلام عليكم حبيبتي، عذراً منك والله، بتأخر عليكم شوي بسبب الزحمة. إن شاء الله أوصل الساعة ' + fmtAr(newStart) + ' تقريباً. الله يعطيكم العافية على تفهمكم 🌹';
 }
+function dayNavLink(stops) {
+  var pts = stops.map(function (x) { return BY[x.id]; }).filter(function (s) { return s.lat != null && s.lng != null; });
+  if (!pts.length) return '';
+  var ll = function (s) { return s.lat + ',' + s.lng; };
+  var url = 'https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=' + ll(SCHOOL) + '&destination=' + ll(pts[pts.length - 1]);
+  if (pts.length > 1) url += '&waypoints=' + encodeURIComponent(pts.slice(0, -1).map(ll).join('|'));
+  return url;
+}
 function dayRoute(plan, d) { return route(plan[d], S.dur, d); }
 
 function viewToday(root, plan) {
@@ -223,6 +231,8 @@ function viewToday(root, plan) {
   root.appendChild(h('h2', '', (vd === real ? 'Today · ' : '') + FULL[vd]));
   if (!r.stops.length) { root.appendChild(h('p', 'empty', 'No lessons this day — enjoy your afternoon.')); return; }
   root.appendChild(h('p', 'sub', r.stops.length + ' lesson(s) · leave school ' + fmt(startOf(vd))));
+  var nav = dayNavLink(r.stops);
+  if (nav) root.appendChild(a('Navigate whole route in Maps', 'navbtn', nav));
   r.stops.forEach(function (x) { root.appendChild(stopCard(x, vd)); });
   root.appendChild(h('p', 'sub', 'Last lesson ends ' + fmt(r.end)));
 }
@@ -391,6 +401,33 @@ function settingsCard() {
       else alert('Notifications are blocked. Allow them in the browser/site settings.');
     });
   }, S.remind));
+  card.appendChild(h('div', 'lbl', 'Backup — your data lives only on this phone'));
+  var file = h('input', '', null, { type: 'file', accept: 'application/json' });
+  file.style.display = 'none';
+  file.onchange = function () {
+    var f = file.files[0];
+    if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      try {
+        var d = JSON.parse(rd.result);
+        if (!d || !Array.isArray(d.students)) throw new Error('bad');
+        if (!confirm('Replace everything on this phone with this backup?')) return;
+        Object.keys(DEF).forEach(function (k) { if (d[k] !== undefined) S[k] = d[k]; });
+        save(); render();
+      } catch (e) { alert('That file is not a valid backup.'); }
+    };
+    rd.readAsText(f);
+  };
+  card.appendChild(h('div', 'actions', [
+    btn('Download backup', '', function () {
+      var blob = new Blob([JSON.stringify(S, null, 1)], { type: 'application/json' });
+      var l = h('a', '', null, { href: URL.createObjectURL(blob), download: 'aya-planner-backup-' + new Date().toISOString().slice(0, 10) + '.json' });
+      document.body.appendChild(l); l.click(); l.remove();
+    }),
+    btn('Restore backup', '', function () { file.click(); }),
+    file
+  ]));
   card.appendChild(h('p', 'sub', 'Reminders ring while the app is open or running in the background on your phone. If the phone closes the app completely, open it once and today’s reminders are set again.'));
   return card;
 }
