@@ -382,27 +382,31 @@ function viewStudents(root, plan) {
   if (!vis.length) root.appendChild(h('p', 'empty', 'No student matches.'));
   vis.forEach(function (s) {
     var c = CL[s.cluster || 'pending'] || CL.pending;
-    var card = h('section', 'card' + (s.hold ? ' hold' : ''));
-    card.appendChild(h('div', 'dayhead', [
-      h('div', 'who', [avatar(s), h('div', '', [h('b', 'name', s.name), h('div', 'sub', (s.area ? s.area + ' · ' : '') + s.per + '×/week')])]),
-      s.hold ? h('span', 'badge', 'On hold') : h('span', 'badge', c.label)
-    ]));
+    var open = UI.stuOpen === s.id;
+    var body = h('div', 'cardbody');
+    var head = h('button', 'cardhead', [
+      avatar(s),
+      h('div', 'headtxt', [h('b', 'name', s.name), h('div', 'sub', (s.area ? s.area + ' · ' : '') + s.per + '×/week' + (phoneOf(s) ? '' : ' · no WhatsApp number yet') + (s.hold ? ' · on hold' : ''))]),
+      h('span', 'chev' + (open ? ' open' : ''), '›')
+    ], { type: 'button' });
+    head.setAttribute('aria-expanded', open ? 'true' : 'false');
+    head.onclick = function () { UI.stuOpen = open ? null : s.id; render(); };
     var wkIn = h('input', 'numin', null, { type: 'number', min: '1', max: '7', value: String(s.per) });
     wkIn.setAttribute('inputmode', 'numeric');
     wkIn.setAttribute('aria-label', 'Sessions per week for ' + s.name);
     wkIn.onchange = function () { s.per = Math.min(7, Math.max(1, parseInt(wkIn.value, 10) || 1)); save(); render(); };
     live(wkIn);
-    card.appendChild(h('div', 'dayhead prow', [h('span', 'lbl', 'Sessions per week'), h('div', 'counter', [
+    body.appendChild(h('div', 'dayhead prow', [h('span', 'lbl', 'Sessions per week'), h('div', 'counter', [
       btn('−', 'cbtn', function () { chg(function () { s.per = Math.max(1, s.per - 1); }); }),
       wkIn,
       btn('+', 'cbtn', function () { chg(function () { s.per = Math.min(7, s.per + 1); }); })
     ])]));
     if (!s.hold) {
       var days = WEEK.filter(function (d) { return plan[d].indexOf(s.id) >= 0; });
-      card.appendChild(h('p', 'sub', days.length ? 'Planned: ' + days.map(function (d) { return FULL[d]; }).join(', ') : 'Not planned yet this week'));
+      body.appendChild(h('p', 'sub', days.length ? 'Planned: ' + days.map(function (d) { return FULL[d]; }).join(', ') : 'Not planned yet this week'));
       var tot = h('div', 'chips', [h('span', 'lbl', 'Total sessions: ' + (S.total[s.id] || 0) + ' · done this week: ' + Object.keys(S.marks).filter(function (k) { return k.split('|')[1] === s.id; }).length + ' (edit in Profile)')]);
-      card.appendChild(tot);
-      card.appendChild(h('div', 'lbl', 'Tap the days they refuse'));
+      body.appendChild(tot);
+      body.appendChild(h('div', 'lbl', 'Tap the days they refuse'));
       var ch = h('div', 'chips');
       (s.fixed || WORK).forEach(function (d) {
         var ref = (S.refused[s.id] || []).indexOf(d) >= 0;
@@ -410,8 +414,8 @@ function viewStudents(root, plan) {
           chg(function () { var l = (S.refused[s.id] || []).slice(), i = l.indexOf(d); if (i >= 0) l.splice(i, 1); else l.push(d); S.refused[s.id] = l; });
         }, ref));
       });
-      card.appendChild(ch);
-      card.appendChild(h('div', 'lbl', (S.extra[s.id] || []).length ? 'Must come this week' : 'Must-come day? (e.g. before an exam)'));
+      body.appendChild(ch);
+      body.appendChild(h('div', 'lbl', (S.extra[s.id] || []).length ? 'Must come this week' : 'Must-come day? (e.g. before an exam)'));
       var ex = h('div', 'chips');
       WORK.forEach(function (d) {
         var on = (S.extra[s.id] || []).indexOf(d) >= 0;
@@ -419,29 +423,22 @@ function viewStudents(root, plan) {
           chg(function () { var l = (S.extra[s.id] || []).slice(), i = l.indexOf(d); if (i >= 0) l.splice(i, 1); else l.push(d); S.extra[s.id] = l; });
         }, on));
       });
-      card.appendChild(ex);
+      body.appendChild(ex);
       if (s.durChoice) {
-        card.appendChild(h('div', 'lbl', 'Usual lesson length'));
+        body.appendChild(h('div', 'lbl', 'Usual lesson length'));
         var du = h('div', 'chips');
         [1, 2].forEach(function (n) { du.appendChild(btn(n + ' hour' + (n > 1 ? 's' : ''), 'chip', function () { chg(function () { S.dur[s.id] = n; }); }, durOf(s.id, S.dur) === n)); });
-        card.appendChild(du);
+        body.appendChild(du);
       }
     }
-    if (s.note) card.appendChild(h('p', 'sub', s.note));
-    var ph = h('input', 'phonein', null, { type: 'tel', placeholder: 'WhatsApp number (05XXXXXXXX)', value: phoneOf(s) });
-    ph.setAttribute('inputmode', 'tel');
-    ph.setAttribute('aria-label', 'WhatsApp number for ' + s.name);
-    ph.onchange = function () { S.phones[s.id] = ph.value.trim(); save(); render(); };
-    live(ph);
-    card.appendChild(h('div', 'lbl', 'WhatsApp number (saved on this phone)'));
-    card.appendChild(ph);
-    card.appendChild(h('div', 'actions', [a('Map', 'map', mapLink(s.map)), a('WhatsApp', 'wa', waLink(phoneOf(s)))]));
-    card.appendChild(h('div', 'actions', [
+    if (s.note) body.appendChild(h('p', 'sub', s.note));
+    body.appendChild(h('div', 'actions', [a('Map', 'map', mapLink(s.map)), a('WhatsApp', 'wa', waLink(phoneOf(s)))]));
+    body.appendChild(h('div', 'actions', [
       btn(s.hold ? 'Resume' : 'Hold', '', function () { chg(function () { s.hold = !s.hold; }); }),
       btn('Edit', '', function () { UI.editing = s; render(); }),
       btn('Remove', 'del', function () { if (confirm('Remove ' + s.name + '?')) chg(function () { S.students = S.students.filter(function (x) { return x !== s; }); }); })
     ]));
-    root.appendChild(card);
+    root.appendChild(h('section', 'card pcard' + (open ? ' isopen' : '') + (s.hold ? ' hold' : ''), open ? [head, body] : [head]));
   });
 }
 
