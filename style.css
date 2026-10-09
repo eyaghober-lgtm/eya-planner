@@ -159,3 +159,4 @@ nav{grid-template-columns:repeat(5,1fr)}.tab{font-size:11px}.tab .ico{width:40px
 @media (prefers-color-scheme:dark){.cancelbtn{background:#3A2A22;color:#F2C9A6;border-color:#5A3F30}}
 .stats.prof{grid-template-columns:repeat(3,1fr)}
 .counter .numin{width:64px}
+.timein{min-height:44px;padding:0 12px;border:1px solid var(--line);border-radius:14px;font:inherit;font-weight:700;color:var(--ink);background:var(--card)}

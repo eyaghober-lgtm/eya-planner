@@ -21,7 +21,7 @@ var SEED = [
   { id: 'lulwa', name: 'Lulwa', per: 3, dur: 1, cluster: 'north', area: 'Al Qirawan', lat: 24.862, lng: 46.612, km: null, map: 'https://maps.app.goo.gl/msV96mfUppFcS7PXA' }
 ];
 var KEY = 'aya-planner-v2';
-var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, myName: 'Aya', total: {}, cancelled: {}, skip: {}, cancels: {} };
+var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, myName: 'Aya', order: {}, total: {}, cancelled: {}, skip: {}, cancels: {} };
 var S = load();
 var UI = { tab: 'today', viewDay: null, copied: '', editing: undefined };
 
@@ -198,7 +198,7 @@ function nextHero(r, vd) {
   box.appendChild(h('div', 'actions', [a('Map', 'heroact', mapLink(s.map)), a('On my way', 'heroact', waLink(phoneOf(s), 'السلام عليكم حبيبتي، أنا في الطريق وبوصل الساعة ' + fmtAr(nxt.start) + ' تقريباً إن شاء الله'), function () { startTrack(s); })]));
   return box;
 }
-function stopCard(x, day, big) {
+function stopCard(x, day, opts) {
   var s = BY[x.id], c = CL[s.cluster || 'pending'] || CL.pending, key = day + '|' + x.id, done = !!S.marks[key];
   var card = h('div', 'stop' + (done ? ' done' : ''), null);
   card.style.borderLeftColor = c.color;
@@ -225,6 +225,12 @@ function stopCard(x, day, big) {
     }, done)
   ]);
   card.appendChild(act);
+  if (opts && opts.n > 1) {
+    var mvr = h('div', 'chips', [h('span', 'lbl', 'Order:')]);
+    mvr.appendChild(btn('↑ Earlier', 'chip', function () { moveStop(opts.plan, day, opts.i, -1); }));
+    mvr.appendChild(btn('↓ Later', 'chip', function () { moveStop(opts.plan, day, opts.i, 1); }));
+    card.appendChild(mvr);
+  }
   var late = h('div', 'chips', [h('span', 'lbl', 'Running late:')]);
   [10, 20, 30].forEach(function (n) {
     late.appendChild(a(n + ' min', 'chip latelink', waLink(phoneOf(s), lateMsg(s, x.start + n))));
@@ -268,7 +274,21 @@ function dayNavLink(stops) {
   if (pts.length > 1) url += '&waypoints=' + encodeURIComponent(pts.slice(0, -1).map(ll).join('|'));
   return url;
 }
-function dayRoute(plan, d) { return route(plan[d], S.dur, d); }
+function dayRoute(plan, d) {
+  var man = S.order[d];
+  if (!man || !man.length || !plan[d].length) return route(plan[d], S.dur, d);
+  var ids = man.filter(function (id) { return plan[d].indexOf(id) >= 0; });
+  plan[d].forEach(function (id) { if (ids.indexOf(id) < 0) ids.push(id); });
+  return walk(ids, S.dur, d);
+}
+function hhmm(m) { return (m < 600 ? '0' : '') + Math.floor(m / 60) + ':' + (m % 60 < 10 ? '0' : '') + (m % 60); }
+function moveStop(plan, d, i, dir) {
+  var ids = dayRoute(plan, d).stops.map(function (x) { return x.id; });
+  var j = i + dir;
+  if (j < 0 || j >= ids.length) return;
+  var tmp = ids[i]; ids[i] = ids[j]; ids[j] = tmp;
+  chg(function () { S.order[d] = ids; });
+}
 
 function viewToday(root, plan) {
   var JS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], real = JS[new Date().getDay()];
@@ -283,7 +303,8 @@ function viewToday(root, plan) {
   if (vd === real) root.appendChild(nextHero(r, vd));
   var nav = dayNavLink(r.stops);
   if (nav) root.appendChild(a('Navigate whole route in Maps', 'navbtn', nav));
-  r.stops.forEach(function (x) { root.appendChild(stopCard(x, vd)); });
+  r.stops.forEach(function (x, i) { root.appendChild(stopCard(x, vd, { i: i, n: r.stops.length, plan: plan })); });
+  if (S.order[vd]) root.appendChild(btn('Reset to automatic order', 'wide', function () { chg(function () { delete S.order[vd]; }); }));
   root.appendChild(h('p', 'sub', 'Last lesson ends ' + fmt(r.end)));
 }
 
@@ -305,15 +326,27 @@ function viewWeek(root, built) {
       tr.appendChild(btn(o[1], 'chip' + (o[0] > 1 ? ' warnchip' : ''), function () { chg(function () { if (o[0] === 1) delete S.traffic[d]; else S.traffic[d] = o[0]; }); }, (S.traffic[d] || 1) === o[0]));
     });
     sec.appendChild(tr);
+    var tm = h('div', 'chips', [h('span', 'lbl', 'Start time:')]);
+    var ti = h('input', 'timein', null, { type: 'time', value: hhmm(startOf(d)) });
+    ti.setAttribute('aria-label', 'Start time for ' + FULL[d]);
+    ti.onchange = function () {
+      var m = /^(\d\d):(\d\d)$/.exec(ti.value);
+      if (!m) return;
+      var v = +m[1] * 60 + +m[2];
+      chg(function () { if (v === defStart(d)) delete S.dayStart[d]; else S.dayStart[d] = v; });
+    };
+    tm.appendChild(ti);
+    sec.appendChild(tm);
     if (d !== 'Sat') {
-      var st = h('div', 'chips', [h('span', 'lbl', 'Leave school:')]);
+      var st = h('div', 'chips', [h('span', 'lbl', 'Quick:')]);
       (d === 'Fri' ? [12 * 60, 14 * 60, 16 * 60] : [14 * 60, 15 * 60]).forEach(function (m) {
         st.appendChild(btn(fmt(m).replace(':00', ''), 'chip', function () { chg(function () { if (m === defStart(d)) delete S.dayStart[d]; else S.dayStart[d] = m; }); }, startOf(d) === m));
       });
       sec.appendChild(st);
     }
-    r.stops.forEach(function (x) { sec.appendChild(stopCard(x, d)); });
-    if (r.stops.length) sec.appendChild(h('p', 'sub', 'Last lesson ends ' + fmt(r.end)));
+    r.stops.forEach(function (x, i) { sec.appendChild(stopCard(x, d, { i: i, n: r.stops.length, plan: plan })); });
+    if (S.order[d]) sec.appendChild(btn('Reset to automatic order', 'wide', function () { chg(function () { delete S.order[d]; }); }));
+    if (r.stops.length) sec.appendChild(h('p', 'sub', (r.ok ? '' : 'Runs late · ') + 'Last lesson ends ' + fmt(r.end)));
     root.appendChild(sec);
   });
   var cks = Object.keys(S.cancelled);
@@ -337,7 +370,7 @@ function viewWeek(root, built) {
     root.appendChild(cc);
   }
   root.appendChild(btn('Start a new week', 'wide', function () {
-    if (confirm('Clear this week’s ticks, cancellations, must-come days, start times and traffic? Total sessions are kept.')) chg(function () { S.marks = {}; S.extra = {}; S.cancelled = {}; S.skip = {}; S.approvedSig = ''; S.dayStart = {}; S.durDay = {}; S.traffic = {}; });
+    if (confirm('Clear this week’s ticks, cancellations, must-come days, start times and traffic? Total sessions are kept.')) chg(function () { S.marks = {}; S.extra = {}; S.cancelled = {}; S.skip = {}; S.order = {}; S.approvedSig = ''; S.dayStart = {}; S.durDay = {}; S.traffic = {}; });
   }));
 }
 
