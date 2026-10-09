@@ -730,9 +730,13 @@ document.getElementById('form').onsubmit = function () {
 
 /* ---------- main render ---------- */
 var QUIET = false;
+var LATER = null;
 function live(el) {
   var commit = el.onchange;
-  el.oninput = function () { QUIET = true; try { commit.call(el); } finally { QUIET = false; } };
+  var quiet = function () { QUIET = true; try { commit.call(el); } finally { QUIET = false; } };
+  el.oninput = quiet;
+  // leaving the field must not redraw at once: that would swallow the tap on the next button
+  el.onchange = function () { quiet(); clearTimeout(LATER); LATER = setTimeout(render, 400); };
   return el;
 }
 function render() {
