@@ -387,6 +387,16 @@ function viewStudents(root, plan) {
       h('div', 'who', [avatar(s), h('div', '', [h('b', 'name', s.name), h('div', 'sub', (s.area ? s.area + ' · ' : '') + s.per + '×/week')])]),
       s.hold ? h('span', 'badge', 'On hold') : h('span', 'badge', c.label)
     ]));
+    var wkIn = h('input', 'numin', null, { type: 'number', min: '1', max: '7', value: String(s.per) });
+    wkIn.setAttribute('inputmode', 'numeric');
+    wkIn.setAttribute('aria-label', 'Sessions per week for ' + s.name);
+    wkIn.onchange = function () { s.per = Math.min(7, Math.max(1, parseInt(wkIn.value, 10) || 1)); save(); render(); };
+    live(wkIn);
+    card.appendChild(h('div', 'dayhead prow', [h('span', 'lbl', 'Sessions per week'), h('div', 'counter', [
+      btn('−', 'cbtn', function () { chg(function () { s.per = Math.max(1, s.per - 1); }); }),
+      wkIn,
+      btn('+', 'cbtn', function () { chg(function () { s.per = Math.min(7, s.per + 1); }); })
+    ])]));
     if (!s.hold) {
       var days = WEEK.filter(function (d) { return plan[d].indexOf(s.id) >= 0; });
       card.appendChild(h('p', 'sub', days.length ? 'Planned: ' + days.map(function (d) { return FULL[d]; }).join(', ') : 'Not planned yet this week'));
