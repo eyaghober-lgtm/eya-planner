@@ -539,8 +539,17 @@ function viewProfile(root) {
     wk.setAttribute('aria-label', 'Sessions per week for ' + s.name);
     wk.onchange = function () { s.per = Math.min(7, Math.max(1, parseInt(wk.value, 10) || 1)); save(); render(); };
     var row = function (label, ctr) { return h('div', 'dayhead prow', [h('span', 'lbl', label), ctr]); };
-    root.appendChild(h('section', 'card' + (s.hold ? ' hold' : ''), [
-      h('div', 'who', [avatar(s), h('div', '', [h('b', 'name', s.name), h('div', 'sub', 'This week: ' + wd + ' / ' + needOf(s) + ' done · cancelled: ' + (S.cancels[s.id] || 0))])]),
+    var open = UI.profOpen === s.id, dueNow = dueOf(s);
+    var head = h('button', 'cardhead', [
+      avatar(s),
+      h('div', 'headtxt', [h('b', 'name', s.name), h('div', 'sub', 'Total ' + (S.total[s.id] || 0) + ' · ' + s.per + '/week' + (s.hold ? ' · on hold' : ''))]),
+      dueNow > 0 ? h('span', 'duechip', dueNow + ' SAR') : null,
+      h('span', 'chev' + (open ? ' open' : ''), '›')
+    ], { type: 'button' });
+    head.setAttribute('aria-expanded', open ? 'true' : 'false');
+    head.onclick = function () { UI.profOpen = open ? null : s.id; render(); };
+    root.appendChild(h('section', 'card pcard' + (open ? ' isopen' : '') + (s.hold ? ' hold' : ''), [head, !open ? null : h('div', 'cardbody', [
+      h('div', 'sub', 'This week: ' + wd + ' / ' + needOf(s) + ' done · cancelled: ' + (S.cancels[s.id] || 0)),
       row('Total sessions taught', h('div', 'counter', [
         btn('−', 'cbtn', function () { chg(function () { S.total[s.id] = Math.max(0, (S.total[s.id] || 0) - 1); }); }),
         inp,
@@ -552,7 +561,7 @@ function viewProfile(root) {
         btn('+', 'cbtn', function () { chg(function () { s.per = Math.min(7, s.per + 1); }); })
       ])),
       payBlock(s)
-    ]));
+    ])]));
   });
 }
 

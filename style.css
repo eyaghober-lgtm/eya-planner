@@ -170,3 +170,9 @@ nav{grid-template-columns:repeat(5,1fr)}.tab{font-size:11px}.tab .ico{width:40px
 .paidbtn{background:linear-gradient(135deg,#1F9D55,#2DBE74);color:#fff;border-color:transparent;font-weight:800}
 .paybox .prow:first-of-type{border-top:0;margin-top:4px}
 @media (prefers-color-scheme:dark){.paybox{background:#2A1B38}.due{background:#1B1224}.due b,.paytitle{color:#F2A6D0}}
+.pcard{padding:6px 12px}.pcard.isopen{padding-bottom:14px}
+.cardhead{display:flex;align-items:center;width:100%;min-height:64px;padding:6px 0;text-align:left;background:transparent;border:0;color:inherit;font:inherit;cursor:pointer}
+.cardhead .avatar{margin-right:12px}.headtxt{flex:1;min-width:0}.headtxt .sub{margin:0}
+.duechip{margin-right:8px;padding:4px 10px;border-radius:999px;background:linear-gradient(135deg,#A23FB0,#D16BA5);color:#fff;font-weight:800;font-size:13px;white-space:nowrap}
+.chev{font-size:28px;line-height:1;color:var(--mute);transition:transform .25s ease}.chev.open{transform:rotate(90deg)}
+.cardbody{animation:rise .3s ease both;border-top:1px dashed var(--line);margin-top:4px;padding-top:4px}
