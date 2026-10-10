@@ -1,0 +1,9 @@
+{
+  "name": "eya-planner",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Aya's lesson planner (static app + reply-helper API)",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0"
+  }
+}

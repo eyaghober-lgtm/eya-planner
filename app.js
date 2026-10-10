@@ -21,9 +21,9 @@ var SEED = [
   { id: 'lulwa', name: 'Lulwa', per: 3, dur: 1, cluster: 'north', area: 'Al Qirawan', lat: 24.862, lng: 46.612, km: null, map: 'https://maps.app.goo.gl/msV96mfUppFcS7PXA' }
 ];
 var KEY = 'aya-planner-v2';
-var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, savedAt: 0, myName: 'Aya', rate: {}, unpaid: {}, pay: {}, order: {}, total: {}, cancelled: {}, skip: {}, cancels: {} };
+var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, savedAt: 0, needs: [], myName: 'Aya', rate: {}, unpaid: {}, pay: {}, order: {}, total: {}, cancelled: {}, skip: {}, cancels: {} };
 var S = load();
-var UI = { q: '', flt: 'all', sort: 'added', tab: 'today', viewDay: null, copied: '', editing: undefined };
+var UI = { rhStu: '', rhMsg: '', rhRes: null, rhBusy: false, rhErr: '', q: '', flt: 'all', sort: 'added', tab: 'today', viewDay: null, copied: '', editing: undefined };
 
 function load() {
   var s = {};
@@ -443,6 +443,90 @@ function viewStudents(root, plan) {
   });
 }
 
+/* ---------- reply helper (needs the /api/reply server function) ---------- */
+var PASS_KEY = 'aya-reply-passcode';
+function getPass() { try { return localStorage.getItem(PASS_KEY) || ''; } catch (e) { return ''; } }
+function setPass(v) { try { if (v) localStorage.setItem(PASS_KEY, v); else localStorage.removeItem(PASS_KEY); } catch (e) {} }
+var CAT = { schedule_change: 'Change of time', cancel: 'Cancel', late_or_early: 'Late / early', payment: 'Payment', question: 'Question', feedback: 'Feedback', thanks: 'Thanks', other: 'Other' };
+
+function askReply(lessonsBy) {
+  var s = S.students.filter(function (x) { return x.id === UI.rhStu; })[0];
+  var msg = (UI.rhMsg || '').trim();
+  if (!msg) { UI.rhErr = 'Paste the parent’s message first.'; render(); return; }
+  UI.rhBusy = true; UI.rhErr = ''; UI.rhRes = null; render();
+  var student = s ? { name: s.name, lessons: (lessonsBy[s.id] || []).map(function (l) { return { day: FULL[l.d], time: fmt(l.start) + ' – ' + fmt(l.end) }; }) } : null;
+  fetch('/api/reply', { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-passcode': getPass() }, body: JSON.stringify({ message: msg, student: student }) })
+    .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, body: j }; }); })
+    .then(function (r) {
+      UI.rhBusy = false;
+      if (r.status === 200 && r.body.reply) {
+        UI.rhRes = r.body;
+        S.needs.unshift({ t: Date.now(), name: s ? s.name : 'Unknown', category: r.body.need.category, urgency: r.body.need.urgency, summary: r.body.need.summary });
+        S.needs = S.needs.slice(0, 30); save();
+      } else if (r.status === 200 && r.body.error === 'declined') UI.rhErr = 'The assistant could not answer this message. Write the reply yourself.';
+      else if (r.status === 401) { UI.rhErr = 'Wrong passcode. Check it and try again.'; setPass(''); }
+      else if (r.status === 503) UI.rhErr = 'The reply helper is not set up yet (see the steps below).';
+      else if (r.status === 429) UI.rhErr = 'Too many requests. Wait a few minutes.';
+      else UI.rhErr = 'Something went wrong (' + (r.body.error || r.status) + '). Try again.';
+      render();
+    })
+    .catch(function () { UI.rhBusy = false; UI.rhErr = 'No connection to the server. Check your internet.'; render(); });
+}
+
+function replyCard(lessonsBy) {
+  var card = h('section', 'card replycard', [h('b', '', 'Reply helper'), h('p', 'sub', 'Paste a parent’s message. I suggest a warm Saudi reply and tell you what they need. You decide what to send.')]);
+  if (!getPass()) {
+    var pi = h('input', 'phonein', null, { type: 'password', placeholder: 'App passcode (from Vercel settings)', autocomplete: 'off' });
+    pi.setAttribute('aria-label', 'App passcode');
+    if (UI.rhErr) card.appendChild(h('p', 'sub errtxt', UI.rhErr));
+    card.appendChild(pi);
+    card.appendChild(btn('Save passcode', 'wide primary', function () { if (pi.value.trim()) { setPass(pi.value.trim()); UI.rhErr = ''; render(); } }));
+    card.appendChild(h('p', 'sub', 'One-time setup: see docs/reply-helper.md in the project. The passcode and the Claude key live only on the server.'));
+    return card;
+  }
+  var sel = h('select', 'phonein');
+  sel.setAttribute('aria-label', 'Which student');
+  sel.appendChild(h('option', '', '— Which student? (optional) —', { value: '' }));
+  S.students.forEach(function (s) { sel.appendChild(h('option', '', s.name, { value: s.id })); });
+  sel.value = UI.rhStu;
+  sel.onchange = function () { UI.rhStu = sel.value; };
+  card.appendChild(sel);
+  var ta = h('textarea', 'rhta', null, { rows: 4, placeholder: 'Paste the parent’s message here…', value: UI.rhMsg });
+  ta.setAttribute('aria-label', 'Parent message');
+  ta.oninput = function () { UI.rhMsg = ta.value; };
+  card.appendChild(ta);
+  card.appendChild(btn(UI.rhBusy ? 'Thinking…' : 'Suggest reply', 'wide primary', function () { if (!UI.rhBusy) askReply(lessonsBy); }));
+  if (UI.rhErr) card.appendChild(h('p', 'sub errtxt', UI.rhErr));
+  var r = UI.rhRes;
+  if (r) {
+    var stu = S.students.filter(function (x) { return x.id === UI.rhStu; })[0];
+    var chips = h('div', 'chips', [
+      h('span', 'badge', CAT[r.need.category] || r.need.category),
+      h('span', 'badge urg-' + r.need.urgency, 'Urgency: ' + r.need.urgency),
+      h('span', 'badge ' + (r.can_auto_reply ? 'okbadge' : ''), r.can_auto_reply ? 'Safe to send as is' : 'Needs your decision')
+    ]);
+    card.appendChild(chips);
+    card.appendChild(h('p', 'sub', [h('b', '', 'Needs: '), r.need.summary]));
+    card.appendChild(h('p', 'sub', [h('b', '', 'Suggestion: '), r.need.suggested_action]));
+    var out = h('textarea', 'rhta', null, { rows: 4, value: r.reply, dir: 'auto' });
+    out.setAttribute('aria-label', 'Suggested reply (you can edit it)');
+    var wa = a('Send on WhatsApp', 'wa', stu && phoneOf(stu) ? waLink(phoneOf(stu), r.reply) : 'https://wa.me/?text=' + encodeURIComponent(r.reply));
+    out.oninput = function () { r.reply = out.value; wa.href = stu && phoneOf(stu) ? waLink(phoneOf(stu), r.reply) : 'https://wa.me/?text=' + encodeURIComponent(r.reply); };
+    card.appendChild(out);
+    card.appendChild(h('div', 'actions', [btn(UI.copied === '__rh' ? 'Copied' : 'Copy', '', function () { copy(r.reply, '__rh'); }), wa]));
+  }
+  if (S.needs.length) {
+    var log = h('div', 'infobox', [h('b', '', 'Recent needs')]);
+    S.needs.slice(0, 6).forEach(function (n) {
+      log.appendChild(h('div', 'sub', new Date(n.t).toLocaleDateString() + ' · ' + n.name + ' · ' + (CAT[n.category] || n.category) + ' — ' + n.summary));
+    });
+    log.appendChild(btn('Clear list', 'chip', function () { chg(function () { S.needs = []; }); }));
+    card.appendChild(log);
+  }
+  card.appendChild(btn('Change passcode', 'chip', function () { setPass(''); render(); }));
+  return card;
+}
+
 function viewSend(root, plan) {
   var lessonsBy = {}, lines = [], sig = [];
   WEEK.forEach(function (d) {
@@ -457,6 +541,7 @@ function viewSend(root, plan) {
     lines.push('');
   });
   var sg = JSON.stringify(sig), approved = !!S.approvedSig && S.approvedSig === sg;
+  root.appendChild(replyCard(lessonsBy));
   root.appendChild(settingsCard());
   root.appendChild(h('h2', '', 'Approve & send'));
   root.appendChild(h('p', 'sub', approved ? 'Plan approved. Your schedule is first, then a message for each student.' : (S.approvedSig ? 'You changed the plan after approving — approve again to refresh the messages.' : 'Happy with the week? Approve it to unlock the messages.')));

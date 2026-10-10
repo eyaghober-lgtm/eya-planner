@@ -187,3 +187,9 @@ body{overflow-x:hidden}
 .minibtn{display:inline-flex;align-items:center;min-height:36px;padding:0 14px;margin:6px 0;border-radius:999px;font-size:13px;font-weight:700;color:#1F7A47;background:#E8F6EE;border:1px solid #BFE6D0}
 .minibtn.empty{color:#A23FB0;background:#FBEAF4;border-color:#F0C9E0}
 @media (prefers-color-scheme:dark){.minibtn{color:#8FE0B5;background:#1D3A2B;border-color:#2C5A42}.minibtn.empty{color:#F2A6D0;background:#3A2340;border-color:#5A3560}}
+.rhta{display:block;width:100%;min-height:96px;margin:6px 0;padding:10px 12px;border:1px solid var(--line);border-radius:14px;font:inherit;color:var(--ink);background:var(--card);resize:vertical}
+select.phonein{appearance:auto}
+.errtxt{color:#B3261E;font-weight:700}
+.okbadge{background:#E1F5EA;color:#13633A}
+.urg-high{background:#FBE0E0;color:#8E1B1B}.urg-low{background:#EEF0F4;color:#4B5565}
+@media (prefers-color-scheme:dark){.okbadge{background:#1D3A2B;color:#8FE0B5}.urg-high{background:#4A1D1D;color:#F6B4B4}.urg-low{background:#2B2F3A;color:#B6BDCC}}
