@@ -45,7 +45,7 @@ function weekId(d) {
   return s.getFullYear() + '-' + (s.getMonth() + 1) + '-' + s.getDate();
 }
 var SAVE_OK = true;
-function save() { try { S.savedAt = Date.now(); localStorage.setItem(KEY, JSON.stringify(S)); SAVE_OK = true; } catch (e) { SAVE_OK = false; } }
+function save() { try { S.savedAt = Date.now(); localStorage.setItem(KEY, JSON.stringify(S)); SAVE_OK = true; } catch (e) { SAVE_OK = false; } try { pushCloud(); } catch (e) {} }
 
 /* ---------- helpers ---------- */
 var STUDENTS = [], BY = {};
@@ -458,6 +458,71 @@ function viewStudents(root, plan) {
   });
 }
 
+/* ---------- online copy (needs the /api/sync server function; same passcode as the reply helper) ----------
+   The phone copy is always kept. The online copy is only read when it is newer, and nothing is
+   written online until it has been read successfully once. */
+var SYNC = { state: '', ready: false, at: 0, t: null };
+function syncText() {
+  var m = { '': 'Not connected yet', loading: 'Loading…', saving: 'Saving online…', saved: 'Saved online' + (SYNC.at ? ' · ' + new Date(SYNC.at).toLocaleTimeString() : ''), loaded: 'Loaded your saved data', error: 'No connection or server problem. Your data is still safe on this phone.', badpass: 'Wrong passcode. Enter it again.', notsetup: 'Online save is not set up yet on the server.' };
+  return m[SYNC.state] || '';
+}
+function paintSync() { var e = document.getElementById('syncstat'); if (e) e.textContent = syncText(); }
+function syncCall(method, body) {
+  var o = { method: method, headers: { 'content-type': 'application/json', 'x-app-passcode': getPass() } };
+  if (body) o.body = JSON.stringify(body);
+  return fetch('/api/sync', o).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { return { status: r.status, body: j }; }); });
+}
+function syncFail(r) {
+  if (r.status === 401) { setPass(''); SYNC.ready = false; SYNC.state = 'badpass'; }
+  else if (r.status === 503) SYNC.state = 'notsetup';
+  else SYNC.state = 'error';
+}
+function pushCloud() {
+  if (!getPass() || !SYNC.ready) return;
+  clearTimeout(SYNC.t);
+  SYNC.t = setTimeout(doPush, 2000);
+}
+function doPush() {
+  if (!getPass() || !SYNC.ready) return;
+  SYNC.state = 'saving'; paintSync();
+  syncCall('PUT', { data: S }).then(function (r) {
+    if (r.status === 200) { SYNC.state = 'saved'; SYNC.at = Date.now(); } else syncFail(r);
+    paintSync();
+  }).catch(function () { SYNC.state = 'error'; paintSync(); });
+}
+function pullCloud(force) {
+  if (!getPass()) return;
+  SYNC.state = 'loading'; paintSync();
+  syncCall('GET').then(function (r) {
+    if (r.status !== 200) { syncFail(r); render(); return; }
+    var d = r.body.data;
+    SYNC.ready = true;
+    if (d && Array.isArray(d.students) && (force || (d.savedAt || 0) > (S.savedAt || 0))) {
+      try { localStorage.setItem(KEY, JSON.stringify(d)); S = load(); SYNC.state = 'loaded'; SYNC.at = Date.now(); } catch (e) { SYNC.state = 'error'; }
+    } else if (S.savedAt && (!d || (d.savedAt || 0) < S.savedAt)) { doPush(); return; }
+    else SYNC.state = 'saved';
+    render();
+  }).catch(function () { SYNC.state = 'error'; paintSync(); });
+}
+function onlineCard() {
+  var card = h('section', 'card', [h('b', '', 'Save online'), h('p', 'sub', 'Keeps your numbers and totals safe online, so they come back on any phone. Protected by your passcode.')]);
+  if (!getPass()) {
+    var pi = h('input', 'phonein', null, { type: 'password', placeholder: 'App passcode', autocomplete: 'off' });
+    pi.setAttribute('aria-label', 'App passcode');
+    card.appendChild(pi);
+    card.appendChild(btn('Connect', 'wide primary', function () { if (pi.value.trim()) { setPass(pi.value.trim()); SYNC.state = ''; pullCloud(false); render(); } }));
+  } else {
+    var st = h('p', 'sub', syncText(), { id: 'syncstat' });
+    card.appendChild(st);
+    card.appendChild(h('div', 'actions', [
+      btn('Save now', '', function () { if (SYNC.ready) doPush(); else pullCloud(false); }),
+      btn('Load saved data', '', function () { if (confirm('Replace the data on this phone with your saved online copy?')) pullCloud(true); })
+    ]));
+  }
+  if (SYNC.state === 'badpass') card.appendChild(h('p', 'sub errtxt', syncText()));
+  return card;
+}
+
 /* ---------- reply helper (needs the /api/reply server function) ---------- */
 var PASS_KEY = 'aya-reply-passcode';
 function getPass() { try { return localStorage.getItem(PASS_KEY) || ''; } catch (e) { return ''; } }
@@ -557,6 +622,7 @@ function viewSend(root, plan) {
   });
   var sg = JSON.stringify(sig), approved = !!S.approvedSig && S.approvedSig === sg;
   root.appendChild(replyCard(lessonsBy));
+  root.appendChild(onlineCard());
   root.appendChild(settingsCard());
   root.appendChild(h('h2', '', 'Approve & send'));
   root.appendChild(h('p', 'sub', approved ? 'Plan approved. Your schedule is first, then a message for each student.' : (S.approvedSig ? 'You changed the plan after approving — approve again to refresh the messages.' : 'Happy with the week? Approve it to unlock the messages.')));
@@ -984,6 +1050,7 @@ function render() {
 }
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
 render();
+pullCloud(false);
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () {});
 
 document.getElementById('refresh').onclick = function () {
