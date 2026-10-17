@@ -1,7 +1,7 @@
 /* Aya's Lesson Planner — phone app. Planning engine ported from the design. */
 var SCHOOL = { lat: 24.7658335, lng: 46.6944546 };
 var WEEK = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-var WORK = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu'];
+var WORK = WEEK.slice(); // all 7 days
 var FULL = { Sat: 'Saturday', Sun: 'Sunday', Mon: 'Monday', Tue: 'Tuesday', Wed: 'Wednesday', Thu: 'Thursday', Fri: 'Friday' };
 var AR_DAY = { Sat: 'السبت', Sun: 'الأحد', Mon: 'الاثنين', Tue: 'الثلاثاء', Wed: 'الأربعاء', Thu: 'الخميس', Fri: 'الجمعة' };
 var START = 14 * 60, LIMIT = 20 * 60 + 30, EARLY_LIMIT = 20 * 60 + 30, BUFFER = 10;
@@ -21,7 +21,7 @@ var SEED = [
   { id: 'lulwa', name: 'Lulwa', per: 3, dur: 1, cluster: 'north', area: 'Al Qirawan', lat: 24.862, lng: 46.612, km: null, map: 'https://maps.app.goo.gl/msV96mfUppFcS7PXA' }
 ];
 var KEY = 'aya-planner-v2';
-var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, savedAt: 0, needs: [], myName: 'Aya', rate: {}, unpaid: {}, pay: {}, order: {}, total: {}, cancelled: {}, skip: {}, cancels: {} };
+var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, savedAt: 0, needs: [], myName: 'Aya', rate: {}, unpaid: {}, pay: {}, order: {}, total: {}, cancelled: {}, skip: {}, cancels: {}, week: '' };
 var S = load();
 var UI = { rhStu: '', rhMsg: '', rhRes: null, rhBusy: false, rhErr: '', q: '', flt: 'all', sort: 'added', tab: 'today', viewDay: null, copied: '', editing: undefined };
 
@@ -31,7 +31,18 @@ function load() {
   var o = {};
   Object.keys(DEF).forEach(function (k) { o[k] = s[k] !== undefined ? s[k] : (DEF[k] && typeof DEF[k] === 'object' ? JSON.parse(JSON.stringify(DEF[k])) : DEF[k]); });
   if (!o.students) o.students = JSON.parse(JSON.stringify(SEED));
+  // New week (weeks start on Saturday): clear the per-week state. Totals, phones, rates and payments are kept.
+  var wk = weekId(new Date()), prev = o.week || (o.savedAt ? weekId(new Date(o.savedAt)) : wk);
+  if (prev !== wk) {
+    ['marks', 'extra', 'cancelled', 'skip', 'order', 'dayStart', 'durDay', 'traffic'].forEach(function (k) { o[k] = {}; });
+    o.approvedSig = '';
+  }
+  o.week = wk;
   return o;
+}
+function weekId(d) {
+  var s = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 1) % 7));
+  return s.getFullYear() + '-' + (s.getMonth() + 1) + '-' + s.getDate();
 }
 var SAVE_OK = true;
 function save() { try { S.savedAt = Date.now(); localStorage.setItem(KEY, JSON.stringify(S)); SAVE_OK = true; } catch (e) { SAVE_OK = false; } }
@@ -319,7 +330,6 @@ function viewWeek(root, built) {
   if (built.missing.length) root.appendChild(h('div', 'warn', [h('b', '', 'Some sessions don’t fit this week')].concat(built.missing.map(function (m) { return h('p', '', m); }))));
   WEEK.forEach(function (d) {
     var r = dayRoute(plan, d);
-    if (d === 'Fri' && !r.stops.length) return;
     var sec = h('section', 'card');
     sec.appendChild(h('div', 'dayhead', [h('b', '', FULL[d]), h('span', 'sub', r.stops.length ? r.stops.length + ' lesson(s) · start ' + fmt(startOf(d)) : 'Free afternoon')]));
     var tr = h('div', 'chips', [h('span', 'lbl', 'Traffic:')]);
@@ -420,7 +430,12 @@ function viewStudents(root, plan) {
       WORK.forEach(function (d) {
         var on = (S.extra[s.id] || []).indexOf(d) >= 0;
         ex.appendChild(btn((on ? '+ ' : '') + d, 'chip' + (on ? ' must' : ''), function () {
-          chg(function () { var l = (S.extra[s.id] || []).slice(), i = l.indexOf(d); if (i >= 0) l.splice(i, 1); else l.push(d); S.extra[s.id] = l; });
+          chg(function () {
+            var l = (S.extra[s.id] || []).slice(), i = l.indexOf(d);
+            if (i >= 0) l.splice(i, 1);
+            else { l.push(d); delete S.cancelled[d + '|' + s.id]; var rf = (S.refused[s.id] || []).filter(function (z) { return z !== d; }); S.refused[s.id] = rf; }
+            S.extra[s.id] = l;
+          });
         }, on));
       });
       body.appendChild(ex);
