@@ -13,7 +13,7 @@ var CL = {
   pending: { label: 'Location pending', color: '#5F6672', tint: '#EDEEF0' }
 };
 var SEED = [
-  { id: 'abdulilah', name: 'Abdulilah', per: 3, dur: 1, cluster: 'far', area: 'West / NW Riyadh', lat: 24.900791, lng: 46.441021, km: 29.7, late: true, phone: '0555866235', fixed: ['Sat', 'Thu', 'Fri'], note: 'Fixed days: Saturday, Thursday and Friday. Can take the 7–8 PM slot.', map: 'https://maps.google.com/?q=24.900791,46.441021' },
+  { id: 'abdulilah', name: 'Abdulilah', per: 3, dur: 1, cluster: 'far', area: 'West / NW Riyadh', lat: 24.900791, lng: 46.441021, km: 29.7, late: true, fixed: ['Sat', 'Thu', 'Fri'], note: 'Fixed days: Saturday, Thursday and Friday. Can take the 7–8 PM slot.', map: 'https://maps.google.com/?q=24.900791,46.441021' },
   { id: 'jazi', name: 'Jazi', per: 3, dur: 1, cluster: 'west', area: 'West, close to school', lat: 24.770063, lng: 46.630829, km: 6.4, map: 'https://maps.google.com/?q=24.770063,46.630829' },
   { id: 'wahoub', name: 'Wahoub', per: 3, dur: 1, cluster: 'west', area: 'West / SW of school', lat: 24.785006, lng: 46.575111, km: 12.2, map: 'https://maps.google.com/?q=24.785006,46.575111' },
   { id: 'lynn', name: 'Lynn', per: 2, dur: 1, cluster: 'west', area: 'NW, close-west', lat: 24.833565, lng: 46.64291, km: 9.2, before: 17 * 60, map: 'https://maps.google.com/?q=24.833565,46.642910' },
@@ -21,7 +21,7 @@ var SEED = [
   { id: 'lulwa', name: 'Lulwa', per: 3, dur: 1, cluster: 'north', area: 'Al Qirawan', lat: 24.862, lng: 46.612, km: null, map: 'https://maps.app.goo.gl/msV96mfUppFcS7PXA' }
 ];
 var KEY = 'aya-planner-v2';
-var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, savedAt: 0, needs: [], myName: 'Aya', rate: {}, unpaid: {}, pay: {}, order: {}, total: {}, cancelled: {}, skip: {}, cancels: {}, week: '' };
+var DEF = { students: null, refused: {}, dur: {}, marks: {}, after: {}, extra: {}, before: {}, durDay: {}, traffic: {}, dayStart: {}, phones: {}, lang: 'ar', approvedSig: '', myPhone: '', remind: false, remindMin: 20, savedAt: 0, needs: [], myName: 'Aya', rate: {}, unpaid: {}, pay: {}, order: {}, total: {}, cancelled: {}, skip: {}, cancels: {}, week: '', lastBackup: 0 };
 var S = load();
 var UI = { rhStu: '', rhMsg: '', rhRes: null, rhBusy: false, rhErr: '', q: '', flt: 'all', sort: 'added', tab: 'today', viewDay: null, copied: '', editing: undefined };
 
@@ -847,16 +847,33 @@ function settingsCard() {
     rd.readAsText(f);
   };
   card.appendChild(h('div', 'actions', [
-    btn('Download backup', '', function () {
-      var blob = new Blob([JSON.stringify(S, null, 1)], { type: 'application/json' });
-      var l = h('a', '', null, { href: URL.createObjectURL(blob), download: 'aya-planner-backup-' + new Date().toISOString().slice(0, 10) + '.json' });
-      document.body.appendChild(l); l.click(); l.remove();
-    }),
+    btn('Back up now', '', doBackup),
     btn('Restore backup', '', function () { file.click(); }),
     file
   ]));
+  card.appendChild(h('p', 'sub', S.lastBackup ? 'Last backup: ' + new Date(S.lastBackup).toLocaleDateString() : 'No backup yet. Tap “Back up now”, then send the file to your WhatsApp or save it to Drive.'));
   card.appendChild(h('p', 'sub', 'Reminders ring while the app is open or running in the background on your phone. If the phone closes the app completely, open it once and today’s reminders are set again.'));
   return card;
+}
+/* Backup: opens the phone's share sheet (WhatsApp, Drive, Files…); falls back to a plain download. */
+function backupDue() {
+  var hasData = Object.keys(S.phones).some(function (k) { return S.phones[k]; }) || Object.keys(S.total).some(function (k) { return S.total[k]; });
+  return hasData && (!S.lastBackup || Date.now() - S.lastBackup > 7 * 864e5);
+}
+function doBackup() {
+  var name = 'aya-planner-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  var done = function () { S.lastBackup = Date.now(); save(); render(); };
+  var json = JSON.stringify(S, null, 1);
+  try {
+    var f = new File([json], name, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) {
+      navigator.share({ files: [f], title: 'Aya planner backup' }).then(done, function () {});
+      return;
+    }
+  } catch (e) {}
+  var l = h('a', '', null, { href: URL.createObjectURL(new Blob([json], { type: 'application/json' })), download: name });
+  document.body.appendChild(l); l.click(); l.remove();
+  done();
 }
 function notify(title, body, url) {
   try {
@@ -956,6 +973,7 @@ function render() {
   if (/^[a-z0-9-]+-[a-z0-9]{9}-[a-z0-9-]+\.vercel\.app$/.test(location.hostname) && location.hostname.indexOf('-git-') < 0) {
     root.appendChild(h('div', 'warn', 'You opened a temporary link. Data saved here will not appear on your main app link. Open your main link, then use Send → Restore backup.'));
   }
+  if (backupDue()) root.appendChild(h('div', 'warn', [h('b', '', 'Back up your data'), h('p', '', 'Your numbers and totals live only on this phone. Save a copy now.'), btn('Back up now', 'wide', doBackup)]));
   if (UI.tab === 'today') viewToday(root, built.plan);
   else if (UI.tab === 'week') viewWeek(root, built);
   else if (UI.tab === 'students') viewStudents(root, built.plan);
